@@ -223,7 +223,14 @@ cli.rs                ← `angkorgit` CLI (GitHub Desktop-shaped): bare / `open 
                         symlink no longer reads as ours); the full name stays the
                         documented one, help ends with "akg is a short alias"; missing path exits 1 (capture
                         resolve before launch); install dest is /usr/local/bin then
-                        ~/.local/bin (never Homebrew's prefix); app takes `--open` /
+                        ~/.local/bin (never Homebrew's prefix — when that fallback is
+                        used the Settings card shows the `export PATH` line, a static
+                        hint, NOT a detected claim, see review of #12); on WINDOWS
+                        install/uninstall add/remove %LOCALAPPDATA%\angkorgit\bin from
+                        the USER Path through a hidden PowerShell
+                        [Environment]::SetEnvironmentVariable call (cli::user_path,
+                        untested on a real Windows machine as of 2026-09-12 — CI only
+                        compiles it); app takes `--open` /
                         `--clone` / RunEvent::Opened + single-instance forward; 7 module tests
 editors.rs            ← OPEN IN EXTERNAL EDITOR (issue #18, 2026-09-12): a static
                         EDITORS spec list (id/label/bin/mac app — VS Code, Insiders,
@@ -235,7 +242,12 @@ editors.rs            ← OPEN IN EXTERNAL EDITOR (issue #18, 2026-09-12): a sta
                         fallback to /Applications + ~/Applications bundles (launch
                         "app" → `open -a`) and a LINUX fallback to the Flatpak export
                         wrappers /var/lib/flatpak/exports/bin/<app id> and
-                        ~/.local/share/flatpak/exports/bin/<app id> (spec.flatpak); open(editorId, target) RE-DETECTS and refuses an id that
+                        ~/.local/share/flatpak/exports/bin/<app id> (spec.flatpak);
+                        editor_dirs() appends per-OS default install folders to the
+                        search PATH (Windows: %LOCALAPPDATA%\Programs\<editor>\bin,
+                        JetBrains Toolbox scripts, %ProgramFiles%; macOS/Linux: the
+                        Toolbox scripts dir, /opt/sublime_text, /snap/bin) because a
+                        Windows editor installed without its launcher was invisible; open(editorId, target) RE-DETECTS and refuses an id that
                         is not installed — the frontend never hands the engine a
                         program path, same allowlist principle as ai_cli (a custom
                         command was deliberately NOT built); spawns through

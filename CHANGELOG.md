@@ -14,9 +14,18 @@ All notable changes to AngKorGit are documented here. The format follows
   and the Flatpak exports of Zed, VS Code, Sublime Text, GNOME Builder and Kate are
   recognised by the External editor picker. (#18)
 
+- **Editors are found in their default install folders.** On Windows the External
+  editor picker looks in the usual install locations of VS Code, Cursor, Windsurf,
+  Sublime Text and the JetBrains Toolbox scripts even when their launcher is not
+  on PATH; macOS and Linux add the JetBrains Toolbox scripts folder.
+
 ### Fixed
 - The commit and working copy file menus said "Show in Finder" on Linux and
   Windows; they say "Show in file manager" there. (#18)
+- On Windows the command line tool installed into a folder that was never on PATH,
+  so `akg` could not be found. Install now adds that folder to the user PATH and
+  uninstall removes it. On macOS, when the install falls back to `~/.local/bin`,
+  the Settings card says how to put it on PATH.
 
 ## [0.13.0] — 2026-09-12
 

@@ -169,6 +169,8 @@ pub fn install() -> AppResult<CliToolStatus> {
         match write_shim(&dest, &body) {
             Ok(()) => {
                 let _ = write_alias(&dest, &body);
+                #[cfg(windows)]
+                let _ = user_path::add(&dir);
                 return Ok(status_of(&dest));
             }
             Err(error) => last_err = Some(error),
@@ -185,9 +187,46 @@ pub fn uninstall() -> AppResult<()> {
         if is_our_shim(&alias) {
             std::fs::remove_file(&alias)?;
         }
-        std::fs::remove_file(path)?;
+        std::fs::remove_file(&path)?;
+        #[cfg(windows)]
+        if let Some(dir) = path.parent() {
+            let _ = user_path::remove(dir);
+        }
     }
     Ok(())
+}
+
+#[cfg(windows)]
+mod user_path {
+    use std::path::Path;
+
+    fn run(script: String) -> std::io::Result<()> {
+        crate::proc::hidden("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|_| ())
+    }
+
+    fn literal(dir: &Path) -> String {
+        dir.to_string_lossy().replace('\'', "''")
+    }
+
+    pub fn add(dir: &Path) -> std::io::Result<()> {
+        run(format!(
+            "$dir = '{}'; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); if (-not (($p -split ';') -contains $dir)) {{ [Environment]::SetEnvironmentVariable('Path', ((@($p, $dir) | Where-Object {{ $_ }}) -join ';'), 'User') }}",
+            literal(dir)
+        ))
+    }
+
+    pub fn remove(dir: &Path) -> std::io::Result<()> {
+        run(format!(
+            "$dir = '{}'; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); $kept = ($p -split ';') | Where-Object {{ $_ -and $_ -ne $dir }}; [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')",
+            literal(dir)
+        ))
+    }
 }
 
 pub fn on_second_instance(app: &AppHandle, argv: Vec<String>, cwd: String) {

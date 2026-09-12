@@ -595,6 +595,12 @@ angkorgit clone [-b branch] <url>`}
           {status.aliasPath && ' · also akg'}
         </p>
       )}
+      {status && status.path.includes('/.local/bin/') && (
+        <p className="mt-1 text-[11px] leading-relaxed text-muted">
+          ~/.local/bin is not on PATH in every shell. If akg is not found, add this line to your shell profile:{' '}
+          <code className="rounded bg-surface-raised px-1 font-mono">export PATH="$HOME/.local/bin:$PATH"</code>
+        </p>
+      )}
     </SettingCard>
   );
 }

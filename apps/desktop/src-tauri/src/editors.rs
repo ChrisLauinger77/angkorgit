@@ -136,7 +136,13 @@ const LAUNCH_BINARY: &str = "binary";
 const LAUNCH_APP: &str = "app";
 
 pub fn detect() -> Vec<EditorInfo> {
-    let path_env = search_path(None);
+    let mut dirs: Vec<std::path::PathBuf> = std::env::split_paths(&search_path(None)).collect();
+    for dir in editor_dirs() {
+        if !dirs.contains(&dir) {
+            dirs.push(dir);
+        }
+    }
+    let path_env = std::env::join_paths(dirs).unwrap_or_default();
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir());
     EDITORS
         .iter()
@@ -182,6 +188,45 @@ fn flatpak_export_roots() -> Vec<std::path::PathBuf> {
         roots.push(home.join(".local/share/flatpak/exports/bin"));
     }
     roots
+}
+
+fn editor_dirs() -> Vec<std::path::PathBuf> {
+    let mut dirs = Vec::new();
+    let home = crate::ai_cli::home_dir();
+    #[cfg(windows)]
+    {
+        if let Some(local) = std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from) {
+            for rel in [
+                "Programs\\Microsoft VS Code\\bin",
+                "Programs\\Microsoft VS Code Insiders\\bin",
+                "Programs\\cursor\\resources\\app\\bin",
+                "Programs\\Windsurf\\bin",
+                "Programs\\Zed",
+                "JetBrains\\Toolbox\\scripts",
+            ] {
+                dirs.push(local.join(rel));
+            }
+        }
+        if let Some(programs) = std::env::var_os("ProgramFiles").map(std::path::PathBuf::from) {
+            dirs.push(programs.join("Microsoft VS Code\\bin"));
+            dirs.push(programs.join("Sublime Text"));
+        }
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = &home {
+        dirs.push(home.join("Library/Application Support/JetBrains/Toolbox/scripts"));
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(home) = &home {
+            dirs.push(home.join(".local/share/JetBrains/Toolbox/scripts"));
+        }
+        dirs.push(std::path::PathBuf::from("/opt/sublime_text"));
+        dirs.push(std::path::PathBuf::from("/snap/bin"));
+    }
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+    let _ = home;
+    dirs
 }
 
 fn info(spec: &EditorSpec, path: &Path, launch: &str) -> EditorInfo {
@@ -266,6 +311,11 @@ mod tests {
         assert_eq!(ids.len(), EDITORS.len());
         assert_eq!(bins.len(), all_bins.len());
         assert!(EDITORS.iter().all(|spec| !spec.bins.is_empty()));
+    }
+
+    #[test]
+    fn editor_dirs_are_absolute() {
+        assert!(editor_dirs().iter().all(|dir| dir.is_absolute()));
     }
 
     #[test]
