@@ -91,6 +91,12 @@ export function gitlabForgeProvider(remote: ForgeRemote, http: HttpClient): Forg
       if (!Array.isArray(data)) throw new ForgeError('GitLab returned an unexpected response', 'gitlab');
       return data.map(mapMergeRequest);
     },
+    async authorAvatar({ email }): Promise<string | null> {
+      const data = (await request('GET', `/avatar?email=${encodeURIComponent(email)}&size=64`)) as {
+        avatar_url?: string | null;
+      };
+      return data.avatar_url ?? null;
+    },
     async defaultBranch(): Promise<string> {
       const data = (await request('GET', `/projects/${projectId}`)) as { default_branch?: string };
       return data.default_branch ?? 'main';

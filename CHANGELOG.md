@@ -6,6 +6,13 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Avatars from your connected account.** When Gravatar has nothing for an author,
+  the graph, commit view, file history and blame ask the repository's forge instead:
+  GitHub and Bitbucket by the commit, GitLab (self-hosted included) by the author
+  email. Needs a connected account for that host and the Pull requests setting on;
+  one request per author, cached for the session.
+
 ### Changed
 - **Fetch reaches every remote.** Auto fetch, the toolbar Fetch and the palette's
   fetch now walk all remotes instead of the first one, so a fork sees `upstream`

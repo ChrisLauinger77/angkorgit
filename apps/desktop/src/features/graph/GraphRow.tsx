@@ -91,6 +91,7 @@ function GraphGutter({
   width,
   laneWidth,
   author,
+  oid,
   hasRefs,
   isStash,
   showTail,
@@ -99,6 +100,7 @@ function GraphGutter({
   width: number;
   laneWidth: number;
   author: CommitInfo['author'];
+  oid: string;
   hasRefs: boolean;
   isStash: boolean;
   showTail: boolean;
@@ -205,7 +207,7 @@ function GraphGutter({
             outlineOffset: isStash ? -1.5 : undefined,
           }}
         >
-          {isStash ? <StashNode color={node.color} /> : <Avatar name={author.name} email={author.email} size={AVATAR_SIZE} />}
+          {isStash ? <StashNode color={node.color} /> : <Avatar name={author.name} email={author.email} oid={oid} size={AVATAR_SIZE} />}
         </span>
       )}
     </div>
@@ -524,6 +526,7 @@ export const CommitRow = memo(function CommitRow({
         width={gutterWidth}
         laneWidth={laneWidth}
         author={commit.author}
+        oid={commit.oid}
         hasRefs={columns.refs && commit.refs.length > 0}
         isStash={isStash}
         showTail={showTail}

@@ -677,3 +677,44 @@ describe('gitlab scheme fallback safety', () => {
     expect(urls[urls.length - 1].startsWith('http://gitlab-race.corp.dev/api/v4/')).toBe(true);
   });
 });
+
+describe('authorAvatar', () => {
+  it('github reads the avatar of the commit author', async () => {
+    const { http, calls } = fakeHttp((request) =>
+      request.url.endsWith('/commits/abc123')
+        ? { status: 200, headers: {}, body: JSON.stringify({ author: { avatar_url: 'https://a/dara' } }) }
+        : { status: 404, headers: {}, body: '{}' },
+    );
+    const provider = createForgeProvider(githubRemote(), http)!;
+    expect(await provider.authorAvatar({ email: 'dara@example.com', sha: 'abc123' })).toBe('https://a/dara');
+    expect(calls[0].url).toBe('https://api.github.com/repos/cheat2001/angkorgit/commits/abc123');
+    const { http: unknown } = fakeHttp(() => ({ status: 200, headers: {}, body: JSON.stringify({ author: null }) }));
+    expect(await createForgeProvider(githubRemote(), unknown)!.authorAvatar({ email: 'x', sha: 'abc' })).toBeNull();
+  });
+
+  it('gitlab asks the avatar endpoint by email', async () => {
+    const remote = parseForgeRemote('git@gitlab.avatars.test:group/subgroup/project.git')!;
+    const { http, calls } = fakeHttp(() => ({
+      status: 200,
+      headers: {},
+      body: JSON.stringify({ avatar_url: 'https://gitlab.avatars.test/uploads/u.png' }),
+    }));
+    const provider = createForgeProvider(remote, http)!;
+    expect(await provider.authorAvatar({ email: 'Dara@Example.com', sha: 'abc' })).toBe(
+      'https://gitlab.avatars.test/uploads/u.png',
+    );
+    expect(calls[0].url).toBe('https://gitlab.avatars.test/api/v4/avatar?email=Dara%40Example.com&size=64');
+  });
+
+  it('bitbucket reads the commit author user avatar', async () => {
+    const remote = parseForgeRemote('git@bitbucket.org:team/repo.git')!;
+    const { http, calls } = fakeHttp(() => ({
+      status: 200,
+      headers: {},
+      body: JSON.stringify({ author: { user: { links: { avatar: { href: 'https://bb/av.png' } } } } }),
+    }));
+    const provider = createForgeProvider(remote, http)!;
+    expect(await provider.authorAvatar({ email: 'x', sha: 'abc' })).toBe('https://bb/av.png');
+    expect(calls[0].url).toBe('https://api.bitbucket.org/2.0/repositories/team/repo/commit/abc');
+  });
+});

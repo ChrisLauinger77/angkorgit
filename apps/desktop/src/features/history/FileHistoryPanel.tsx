@@ -398,7 +398,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
                       setCommitMenu({ x: e.clientX, y: e.clientY, commit });
                     }}
                   >
-                    <Avatar name={commit.author.name} email={commit.author.email} size={24} />
+                    <Avatar name={commit.author.name} email={commit.author.email} oid={commit.oid} size={24} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs text-foreground">{commit.summary}</span>
                       <span className="block truncate text-[11px] text-muted">

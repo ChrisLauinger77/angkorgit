@@ -130,7 +130,7 @@ export function BlameView({
                     onClick={() => onOpenCommit(hunk.oid)}
                   >
                     {hunk.committed ? (
-                      <Avatar name={hunk.authorName} email={hunk.authorEmail} size={16} />
+                      <Avatar name={hunk.authorName} email={hunk.authorEmail} oid={hunk.oid} size={16} />
                     ) : (
                       <span className="size-4 shrink-0 rounded-full bg-primary/30" />
                     )}

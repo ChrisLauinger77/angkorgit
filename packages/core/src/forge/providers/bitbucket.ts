@@ -86,6 +86,12 @@ export function bitbucketForgeProvider(remote: ForgeRemote, http: HttpClient): F
       };
       return data.mainbranch?.name ?? 'main';
     },
+    async authorAvatar({ sha }): Promise<string | null> {
+      const data = (await request('GET', `/repositories/${repoPath}/commit/${sha}`)) as {
+        author?: { user?: { links?: { avatar?: { href?: string | null } } } | null } | null;
+      };
+      return data.author?.user?.links?.avatar?.href ?? null;
+    },
     async listReviewerCandidates(): Promise<ForgeUser[]> {
       const workspace = remote.owner;
       const data = (await request(

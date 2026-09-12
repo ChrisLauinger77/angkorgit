@@ -435,7 +435,7 @@ export function CommitDetails({
 
         <div className="mt-3 rounded-md border border-border-subtle bg-surface-raised/50 p-2.5">
           <div className="flex items-center gap-2.5">
-            <Avatar name={commit.author.name} email={commit.author.email} size={28} />
+            <Avatar name={commit.author.name} email={commit.author.email} oid={commit.oid} size={28} />
             <span className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-xs font-medium text-foreground">{commit.author.name}</span>
               <span className="truncate text-[11px] text-faint" title={formatDate(commit.author.time)}>
