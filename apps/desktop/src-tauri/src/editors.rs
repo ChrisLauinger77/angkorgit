@@ -224,7 +224,7 @@ fn editor_dirs() -> Vec<std::path::PathBuf> {
         dirs.push(std::path::PathBuf::from("/opt/sublime_text"));
         dirs.push(std::path::PathBuf::from("/snap/bin"));
     }
-    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let _ = home;
     dirs
 }
