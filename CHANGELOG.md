@@ -38,6 +38,18 @@ All notable changes to AngKorGit are documented here. The format follows
   on PATH; macOS and Linux add the JetBrains Toolbox scripts folder.
 
 ### Fixed
+- **Blame no longer crashes on a file with uncommitted changes.** Blaming the working
+  copy of a tracked file you had edited aborted the whole app: libgit2 splits a
+  committed block around your edit and leaves the split halves without a signature,
+  which the engine then dereferenced. Authors now come from the commit itself. (#21)
+- **Blame knows when there is nothing to blame.** An untracked or newly staged file
+  has no commits, so the Blame entry in the file menu and the diff header's Blame
+  button are disabled with a hint instead of erroring, and the engine says so plainly
+  for a path missing from a commit. (#21)
+- **Stage hunk works on every hunk, not only the first.** Staging or unstaging a
+  later hunk in a file with several changes failed with "hunk did not apply": the
+  isolated hunk kept line numbers from the full diff that libgit2 could not match.
+  The hunk is now anchored on the lines the index actually has. (#22)
 - **Remote branch tooltips say what double-click does.** A remote branch row or
   chip used to promise "double-click to checkout"; it now says the local branch is
   checked out from it and fast-forwarded when it is behind, which is what happens.

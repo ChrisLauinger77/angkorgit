@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
 import type { CommitFileInfo, FileDiff } from '@angkorgit/core';
+import { hasCommittedHistory } from '@angkorgit/core';
 import {
   Badge,
   Button,
@@ -188,6 +189,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
   const statusSignature = isWorkingCopy
     ? `${statusEntry?.staged ?? ''}|${statusEntry?.unstaged ?? ''}|${statusVersion}`
     : '';
+  const blameable = !isWorkingCopy || !statusEntry || hasCommittedHistory(statusEntry);
 
   useEffect(() => {
     if (!path) return;
@@ -357,11 +359,20 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             <History className="size-3.5" />
           </Button>
         </Hint>
-        <Hint label={target.oid ? 'Blame at this commit' : 'Blame'}>
+        <Hint
+          label={
+            !blameable
+              ? 'Nothing to blame yet — this file has no commits'
+              : target.oid
+                ? 'Blame at this commit'
+                : 'Blame'
+          }
+        >
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label="Blame"
+            disabled={!blameable}
             onClick={() => openBlame(target.path, target.oid ?? null)}
           >
             <UserRoundSearch className="size-3.5" />

@@ -2380,6 +2380,115 @@ fn pull_rebases_when_asked_or_configured_and_merges_otherwise() {
 }
 
 #[test]
+fn blame_of_an_uncommitted_edit_inside_a_committed_block_keeps_the_author() {
+    let repo = TempRepo::new();
+    repo.write("a.txt", "l1\nl2\nl3\nl4\nl5\nl6\n");
+    let base = commit_all(&repo, "base");
+    repo.write("a.txt", "l1\nl2\nCHANGED\nl4\nl5\nl6\n");
+
+    let blame = core::blame_file(repo.path(), "a.txt", None).unwrap();
+    let shape: Vec<(usize, usize, bool)> = blame
+        .hunks
+        .iter()
+        .map(|h| (h.start_line, h.line_count, h.committed))
+        .collect();
+    assert_eq!(shape, vec![(1, 2, true), (3, 1, false), (4, 3, true)]);
+    for hunk in blame.hunks.iter().filter(|h| h.committed) {
+        assert_eq!(hunk.oid, base);
+        assert_eq!(hunk.author_name, "Test User");
+        assert_eq!(hunk.author_email, "test@angkorgit.dev");
+        assert_eq!(hunk.summary, "base");
+        assert!(hunk.time > 0);
+    }
+    assert_eq!(blame.hunks[1].author_name, "Not committed yet");
+
+    repo.write("a.txt", "l1\nSTAGED\nl3\nl4\nl5\nl6\n");
+    core::stage_file(repo.path(), "a.txt").unwrap();
+    repo.write("a.txt", "l1\nSTAGED\nl3\nl4\nUNSTAGED\nl6\nnew\n");
+    let mixed = core::blame_file(repo.path(), "a.txt", None).unwrap();
+    assert_eq!(mixed.hunks.iter().map(|h| h.line_count).sum::<usize>(), 7);
+    assert_eq!(
+        mixed.hunks.iter().filter(|h| !h.committed).count(),
+        3,
+        "staged, unstaged and appended lines are all uncommitted"
+    );
+    assert!(mixed
+        .hunks
+        .iter()
+        .filter(|h| h.committed)
+        .all(|h| h.author_name == "Test User" && h.oid == base));
+}
+
+#[test]
+fn stage_and_unstage_a_later_hunk_in_a_multi_hunk_file() {
+    let repo = TempRepo::new();
+    let base: String = (1..=40).map(|i| format!("line {i}\n")).collect();
+    repo.write("a.txt", &base);
+    commit_all(&repo, "base");
+    let mut lines: Vec<String> = (1..=40).map(|i| format!("line {i}")).collect();
+    lines.insert(2, "inserted near top".to_string());
+    lines[30] = "line 31 changed".to_string();
+    repo.write("a.txt", &(lines.join("\n") + "\n"));
+    assert_eq!(
+        core::file_diff(repo.path(), "a.txt", false, 3)
+            .unwrap()
+            .hunks
+            .len(),
+        2
+    );
+
+    core::stage_hunk(repo.path(), "a.txt", 1).unwrap();
+    let staged = index_content(&repo, "a.txt");
+    assert!(staged.contains("line 31 changed"));
+    assert!(!staged.contains("inserted near top"));
+    let status = core::status(repo.path()).unwrap();
+    assert_eq!(status.files[0].staged.as_deref(), Some("modified"));
+    assert_eq!(status.files[0].unstaged.as_deref(), Some("modified"));
+
+    core::stage_hunk(repo.path(), "a.txt", 0).unwrap();
+    assert!(index_content(&repo, "a.txt").contains("inserted near top"));
+    assert_eq!(core::status(repo.path()).unwrap().files[0].unstaged, None);
+
+    core::unstage_hunk(repo.path(), "a.txt", 1).unwrap();
+    let after = index_content(&repo, "a.txt");
+    assert!(after.contains("inserted near top"));
+    assert!(!after.contains("line 31 changed"));
+    assert_eq!(repo.read("a.txt"), lines.join("\n") + "\n");
+}
+
+fn index_content(repo: &TempRepo, file: &str) -> String {
+    let out = Command::new("git")
+        .args(["show", &format!(":{file}")])
+        .current_dir(&repo.dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    String::from_utf8(out.stdout).unwrap()
+}
+
+#[test]
+fn blame_explains_files_without_history_instead_of_failing_on_the_tree() {
+    let repo = TempRepo::new();
+    repo.write("a.txt", "one\n");
+    repo.write("gone.txt", "bye\n");
+    let first = commit_all(&repo, "first");
+    std::fs::remove_file(repo.dir.join("gone.txt")).unwrap();
+    let second = commit_all(&repo, "delete gone");
+    repo.write("new.txt", "fresh\n");
+
+    let untracked = core::blame_file(repo.path(), "new.txt", None).unwrap_err();
+    assert!(untracked.to_string().contains("no committed history yet"));
+    core::stage_file(repo.path(), "new.txt").unwrap();
+    let staged = core::blame_file(repo.path(), "new.txt", None).unwrap_err();
+    assert!(staged.to_string().contains("no committed history yet"));
+
+    let deleted = core::blame_file(repo.path(), "gone.txt", Some(&second)).unwrap_err();
+    assert!(deleted.to_string().contains("does not exist in commit"));
+    let alive = core::blame_file(repo.path(), "gone.txt", Some(&first)).unwrap();
+    assert_eq!(alive.lines, vec!["bye"]);
+}
+
+#[test]
 fn blame_attributes_lines_to_their_commits_and_uncommitted_edits() {
     let repo = TempRepo::new();
     repo.write("a.txt", "one\ntwo\n");

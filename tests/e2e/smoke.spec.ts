@@ -1040,6 +1040,25 @@ test('the remote menu and the palette open the repository page in the browser', 
   await expect(page.getByText('Open repository in browser', { exact: true })).toBeVisible();
 });
 
+test('blame is disabled for a file no commit has seen yet', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const row = page.getByText('Architecture.md', { exact: true }).first();
+  await row.click({ button: 'right' });
+  const item = page.getByRole('menuitem', { name: /^Blame/ });
+  await expect(item).toHaveText(/no commits yet/);
+  await expect(item).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Escape');
+  await row.click();
+  const diff = page.locator('section[aria-label="Diff for docs/Architecture.md"]');
+  await expect(diff).toBeVisible();
+  await expect(diff.getByRole('button', { name: 'Blame' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByText('ipc.ts', { exact: true }).first().click();
+  await expect(page.locator('section[aria-label="Diff for src/core/ipc.ts"]').getByRole('button', { name: 'Blame' })).toBeEnabled();
+});
+
 test('the checked-out branch chip is filled while other local chips stay tinted', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

@@ -65,50 +65,28 @@ pub fn blame_file(path: &str, file: &str, rev: Option<&str>) -> AppResult<FileBl
         lines.pop();
     }
 
-    let mut summaries: HashMap<Oid, String> = HashMap::new();
+    let mut authors: HashMap<Oid, CommitAuthor> = HashMap::new();
     let mut hunks: Vec<BlameHunk> = blame
         .iter()
         .map(|hunk| {
             let oid = hunk.final_commit_id();
             let committed = !oid.is_zero();
-            let (author_name, author_email, time) = if committed {
-                let signature = hunk.final_signature();
-                (
-                    signature.name().unwrap_or("").to_string(),
-                    signature.email().unwrap_or("").to_string(),
-                    signature.when().seconds(),
-                )
-            } else {
-                (
-                    "Not committed yet".to_string(),
-                    String::new(),
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or_default(),
-                )
-            };
-            let summary = if committed {
-                summaries
+            let author = if committed {
+                authors
                     .entry(oid)
-                    .or_insert_with(|| {
-                        repo.find_commit(oid)
-                            .ok()
-                            .and_then(|commit| commit.summary().map(str::to_string))
-                            .unwrap_or_default()
-                    })
+                    .or_insert_with(|| CommitAuthor::lookup(&repo, oid))
                     .clone()
             } else {
-                "Uncommitted changes".to_string()
+                CommitAuthor::uncommitted()
             };
             let oid_text = oid.to_string();
             BlameHunk {
                 short_oid: oid_text[..7].to_string(),
                 oid: oid_text,
-                summary,
-                author_name,
-                author_email,
-                time,
+                summary: author.summary,
+                author_name: author.name,
+                author_email: author.email,
+                time: author.time,
                 start_line: hunk.final_start_line(),
                 line_count: hunk.lines_in_hunk(),
                 committed,
@@ -125,15 +103,72 @@ pub fn blame_file(path: &str, file: &str, rev: Option<&str>) -> AppResult<FileBl
     })
 }
 
+#[derive(Clone)]
+struct CommitAuthor {
+    summary: String,
+    name: String,
+    email: String,
+    time: i64,
+}
+
+impl CommitAuthor {
+    fn lookup(repo: &Repository, oid: Oid) -> Self {
+        match repo.find_commit(oid) {
+            Ok(commit) => {
+                let author = commit.author();
+                Self {
+                    summary: commit.summary().unwrap_or("").to_string(),
+                    name: author.name().unwrap_or("").to_string(),
+                    email: author.email().unwrap_or("").to_string(),
+                    time: author.when().seconds(),
+                }
+            }
+            Err(_) => Self {
+                summary: String::new(),
+                name: String::new(),
+                email: String::new(),
+                time: 0,
+            },
+        }
+    }
+
+    fn uncommitted() -> Self {
+        Self {
+            summary: "Uncommitted changes".to_string(),
+            name: "Not committed yet".to_string(),
+            email: String::new(),
+            time: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or_default(),
+        }
+    }
+}
+
 fn file_content(repo: &Repository, file: &str, newest: Option<Oid>) -> AppResult<Vec<u8>> {
     match newest {
         Some(oid) => {
             let commit = repo.find_commit(oid)?;
-            let entry = commit.tree()?.get_path(Path::new(file))?;
+            let entry = commit.tree()?.get_path(Path::new(file)).map_err(|_| {
+                AppError::other(format!(
+                    "{file} does not exist in commit {} — blame it at a commit that still has it",
+                    &oid.to_string()[..7]
+                ))
+            })?;
             let blob = repo.find_blob(entry.id())?;
             Ok(blob.content().to_vec())
         }
         None => {
+            let head_has_file = repo
+                .head()
+                .ok()
+                .and_then(|head| head.peel_to_tree().ok())
+                .is_some_and(|tree| tree.get_path(Path::new(file)).is_ok());
+            if !head_has_file {
+                return Err(AppError::other(format!(
+                    "{file} has no committed history yet — commit it first, then blame it"
+                )));
+            }
             let workdir = repo.workdir().ok_or_else(|| {
                 AppError::other("bare repositories have no working copy to blame")
             })?;
