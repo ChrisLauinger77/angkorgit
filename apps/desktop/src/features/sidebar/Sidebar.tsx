@@ -20,6 +20,7 @@ import {
   GitBranch,
   FastForward,
   GitMerge,
+  Globe,
   GitPullRequest,
   Home,
   MoveRight,
@@ -64,7 +65,7 @@ import { useUi } from '@/features/ui/store';
 import { useUndo, type UndoKind } from '@/features/history/undoStore';
 import { useForge } from '@/features/forge/store';
 import { useSettings } from '@/features/settings/store';
-import { forgeNoun, pullRequestCheckoutSpec } from '@angkorgit/core';
+import { forgeNoun, pullRequestCheckoutSpec, remoteWebUrl } from '@angkorgit/core';
 import type { BranchInfo, PullRequestInfo, RemoteInfo, StashInfo, SubmoduleInfo, TagInfo, WorktreeInfo } from '@angkorgit/core';
 import { capCount, isMac } from '@/shared/utils';
 import { killTerminalSession } from '@/features/terminal/sessions';
@@ -1428,6 +1429,15 @@ export function Sidebar() {
               }}
             >
               <ArrowDownToLine /> Fetch {remoteMenu.remote.name}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={remoteWebUrl(remoteMenu.remote.url) === null}
+              onClick={() => {
+                const url = remoteWebUrl(remoteMenu.remote.url);
+                if (url) void openExternal(url);
+              }}
+            >
+              <Globe /> Open in browser
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {

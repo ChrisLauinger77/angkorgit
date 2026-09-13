@@ -18,6 +18,7 @@ import {
   FolderTree,
   GitBranchPlus,
   GitPullRequest,
+  Globe,
   History,
   Home,
   Moon,
@@ -45,7 +46,7 @@ import { installCliTool } from '@/features/settings/cliTool';
 import { openInEditor, preferredEditor, useEditors } from '@/features/settings/editors';
 import { useUndo } from '@/features/history/undoStore';
 import { useForge } from '@/features/forge/store';
-import { forgeNoun, pickForgeRemote } from '@angkorgit/core';
+import { forgeNoun, pickForgeRemote, remoteWebUrl } from '@angkorgit/core';
 import { currentPullRequestUrl, modKey } from '@/shared/utils';
 
 export function CommandPalette({ onRefresh }: { onRefresh: () => Promise<void> }) {
@@ -298,20 +299,36 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => Promise<void> }
           <PaletteItem icon={<ArrowUpFromLine />} label="Push" onSelect={() => run('Push', () => ipc.push(path, remote, false, false, true))} />
           {(() => {
             const headUpstream = branches.find((b) => !b.isRemote && b.isHead)?.upstream ?? null;
-            const prUrl = currentPullRequestUrl(repo, pickForgeRemote(remotes, headUpstream)?.url);
+            const pickedRemote = pickForgeRemote(remotes, headUpstream);
+            const prUrl = currentPullRequestUrl(repo, pickedRemote?.url);
+            const webUrl = pickedRemote ? remoteWebUrl(pickedRemote.url) : null;
             const forgeCurrent = forgeRepoPath !== null && forgeRepoPath === repo?.path;
             const inApp = forgeCurrent && forgeKind !== null && forgeAccount;
-            return prUrl ? (
-              <PaletteItem
-                icon={<GitPullRequest />}
-                label={`Create ${forgeNoun(forgeCurrent ? forgeKind : null)}`}
-                onSelect={() => {
-                  close();
-                  if (inApp) openDialog('createPullRequest');
-                  else void openExternal(prUrl);
-                }}
-              />
-            ) : null;
+            return (
+              <>
+                {webUrl && (
+                  <PaletteItem
+                    icon={<Globe />}
+                    label={remotes.length > 1 ? `Open ${pickedRemote?.name} in browser` : 'Open repository in browser'}
+                    onSelect={() => {
+                      close();
+                      void openExternal(webUrl);
+                    }}
+                  />
+                )}
+                {prUrl && (
+                  <PaletteItem
+                    icon={<GitPullRequest />}
+                    label={`Create ${forgeNoun(forgeCurrent ? forgeKind : null)}`}
+                    onSelect={() => {
+                      close();
+                      if (inApp) openDialog('createPullRequest');
+                      else void openExternal(prUrl);
+                    }}
+                  />
+                )}
+              </>
+            );
           })()}
           <PaletteItem
             icon={<RefreshCw />}

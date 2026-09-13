@@ -1021,6 +1021,25 @@ test('branch menus offer a fast-forward entry next to merge, disabled when the c
   await expect(graphFf).toHaveAttribute('aria-disabled', 'true');
 });
 
+test('the remote menu and the palette open the repository page in the browser', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const sidebar = page.getByRole('complementary', { name: 'Branches and refs' });
+  const remotesHeader = sidebar.getByRole('button', { name: /^Remotes/ });
+  if ((await remotesHeader.getAttribute('aria-expanded')) !== 'true') await remotesHeader.click();
+  await sidebar.getByText('origin', { exact: true }).click({ button: 'right' });
+  const item = page.getByRole('menuitem', { name: 'Open in browser' });
+  await expect(item).toBeVisible();
+  await expect(item).not.toHaveAttribute('aria-disabled', 'true');
+  const [popup] = await Promise.all([page.context().waitForEvent('page'), item.click()]);
+  expect(popup.url()).toBe('https://github.com/demo/angkorgit');
+  await popup.close();
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(page.getByPlaceholder('Type a command or branch name…')).toBeVisible();
+  await expect(page.getByText('Open repository in browser', { exact: true })).toBeVisible();
+});
+
 test('the checked-out branch chip is filled while other local chips stay tinted', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

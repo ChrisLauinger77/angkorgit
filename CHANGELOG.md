@@ -12,6 +12,12 @@ All notable changes to AngKorGit are documented here. The format follows
   into current". It is enabled only when the current branch is strictly behind, so
   syncing a fork's `main` with `upstream/main` is one click and leaves no merge
   commit. "Merge into current" keeps recording a merge commit. (#20)
+- **Open the repository in the browser.** Right-click a remote in the sidebar for
+  "Open in browser", or run "Open repository in browser" from the palette, and the
+  repository page on GitHub, GitLab, Bitbucket or a self-hosted forge opens in your
+  browser. Each remote opens its own page, so a fork's `origin` and `upstream` are
+  both one click away. Bitbucket Server paths map to their browse page; a remote
+  with a local path has nothing to open and the entry stays disabled. (#24)
 - **Avatars from your connected account.** When Gravatar has nothing for an author,
   the graph, commit view, file history and blame ask the repository's forge instead:
   GitHub and Bitbucket by the commit, GitLab (self-hosted included) by the author
