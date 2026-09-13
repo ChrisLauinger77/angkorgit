@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
 import { toastOutcome } from '@/shared/toastOutcome';
-import { Archive, ArchiveRestore, ArrowDownToLine, ArrowUpFromLine, Check, ChevronDown, ChevronUp, Combine, Copy, Filter, FolderTree, GitBranchPlus, Settings2, GitMerge, ListOrdered, ListRestart, RotateCcw, Search, Tag as TagIcon, Trash2, Undo2, User, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDownToLine, ArrowUpFromLine, Check, ChevronDown, ChevronUp, Combine, Copy, FastForward, Filter, FolderTree, GitBranchPlus, Settings2, GitMerge, ListOrdered, ListRestart, RotateCcw, Search, Tag as TagIcon, Trash2, Undo2, User, X } from 'lucide-react';
 import type { CommitInfo, RefInfo } from '@angkorgit/core';
 import {
   Button,
@@ -62,11 +62,31 @@ export function CommitGraph() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [refMenu, setRefMenu] = useState<RefMenuState | null>(null);
+  const [refMenuFf, setRefMenuFf] = useState<boolean | null>(null);
   const [searchDraft, setSearchDraft] = useState(find?.text ?? '');
   const [authorDraft, setAuthorDraft] = useState(find?.author ?? '');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const path = repo?.path ?? '';
+  const refMenuSource =
+    refMenu && (refMenu.ref.kind === 'localBranch' || refMenu.ref.kind === 'remoteBranch') ? refMenu.ref.shorthand : null;
+  useEffect(() => {
+    setRefMenuFf(null);
+    if (!refMenuSource) return;
+    const head = useRepo.getState().repo?.headBranch;
+    if (!head || head === refMenuSource) {
+      setRefMenuFf(false);
+      return;
+    }
+    let cancelled = false;
+    void ipc
+      .mergeCanFastForward(path, head, refMenuSource)
+      .then((ok) => !cancelled && setRefMenuFf(ok))
+      .catch(() => !cancelled && setRefMenuFf(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [path, refMenuSource]);
   const graphFocusSeq = useUi((s) => s.graphFocusSeq);
   useEffect(() => {
     if (graphFocusSeq > 0) scrollRef.current?.focus();
@@ -639,6 +659,17 @@ export function CommitGraph() {
                   }
                 >
                   <GitMerge /> Merge into current branch
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={refMenuFf !== true}
+                  onClick={() =>
+                    void act(`Fast-forward to ${refMenu.ref.shorthand}`, () => ipc.merge(path, refMenu.ref.shorthand, false), {
+                      kind: 'merge',
+                      extra: { branch: refMenu.ref.shorthand },
+                    })
+                  }
+                >
+                  <FastForward /> Fast-forward current branch to this
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>

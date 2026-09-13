@@ -253,6 +253,7 @@ export function Sidebar() {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dropAction, setDropAction] = useState<{ source: string; target: string; canFf?: boolean } | null>(null);
   const [branchMenu, setBranchMenu] = useState<{ x: number; y: number; branch: BranchInfo } | null>(null);
+  const [branchMenuFf, setBranchMenuFf] = useState<boolean | null>(null);
   const [subMenu, setSubMenu] = useState<{ x: number; y: number; sub: SubmoduleInfo } | null>(null);
   const [remoteMenu, setRemoteMenu] = useState<{ x: number; y: number; remote: RemoteInfo } | null>(null);
   const [worktreeMenu, setWorktreeMenu] = useState<{ x: number; y: number; worktree: WorktreeInfo } | null>(null);
@@ -514,6 +515,25 @@ export function Sidebar() {
       return next;
     });
 
+  const branchMenuSource = branchMenu?.branch.isHead ? null : (branchMenu?.branch.name ?? null);
+  useEffect(() => {
+    setBranchMenuFf(null);
+    if (!branchMenuSource) return;
+    const head = useRepo.getState().repo?.headBranch;
+    if (!head) {
+      setBranchMenuFf(false);
+      return;
+    }
+    let cancelled = false;
+    void ipc
+      .mergeCanFastForward(path, head, branchMenuSource)
+      .then((ok) => !cancelled && setBranchMenuFf(ok))
+      .catch(() => !cancelled && setBranchMenuFf(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [path, branchMenuSource]);
+
   if (!repo) return null;
 
   const branchMenuLocalName = branchMenu
@@ -713,7 +733,7 @@ export function Sidebar() {
       <button
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         onDoubleClick={() => void act(`Checkout ${branch.name}`, () => ipc.checkout(path, branch.name), { kind: 'checkout' })}
-        title={`${branch.name} — double-click to checkout`}
+        title={`${branch.name} — double-click to check out ${branch.name.split('/').slice(1).join('/')} from it (fast-forwards the local branch when it is behind)`}
       >
         <HeadMark active={false} />
         <span className="min-w-0 truncate">{label}</span>
@@ -1522,6 +1542,16 @@ export function Sidebar() {
               }
             >
               <GitMerge /> Merge into current
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={branchMenu.branch.isHead || branchMenuFf !== true}
+              onClick={() =>
+                void act(`Fast-forward to ${branchMenu.branch.name}`, () => ipc.merge(path, branchMenu.branch.name, false), {
+                  kind: 'merge',
+                })
+              }
+            >
+              <FastForward /> Fast-forward current to this
             </DropdownMenuItem>
             {!branchMenu.branch.isRemote && (
               <DropdownMenuItem

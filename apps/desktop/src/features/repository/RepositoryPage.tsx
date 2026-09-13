@@ -192,8 +192,9 @@ export function RepositoryPage() {
   }, [settingsOpen, repoPath, forgeKey, showPullRequests]);
 
   const autoFetchMinutes = useSettings((s) => s.autoFetchMinutes);
+  const autoFetchRemotes = useRepo((s) => s.remotes.map((remote) => remote.name).join('\n'));
   useEffect(() => {
-    if (!repoPath || !autoFetchMinutes) return;
+    if (!repoPath || !autoFetchMinutes || !autoFetchRemotes) return;
     let fetching = false;
     let lastFetch = 0;
     const tick = async () => {
@@ -222,7 +223,7 @@ export function RepositoryPage() {
       window.clearInterval(id);
       window.removeEventListener('focus', onFocus);
     };
-  }, [repoPath, autoFetchMinutes]);
+  }, [repoPath, autoFetchMinutes, autoFetchRemotes]);
 
   const refreshAll = useCallback(async () => {
     if (!repo) return;

@@ -322,7 +322,7 @@ function RefChip({
             : group.label
           : separated
             ? `${group.primary.shorthand} — double-click to reset ${group.label} to it, right-click for actions`
-            : `${group.label}${group.local ? ' · local' : ''}${group.remote ? ' · origin' : ''}${worktree ? ` · in worktree ${worktree}` : ''} — ${worktree ? 'double-click to switch to that worktree' : 'double-click to checkout'}, right-click for actions`
+            : `${group.label}${group.local ? ' · local' : ''}${group.remote ? ' · origin' : ''}${worktree ? ` · in worktree ${worktree}` : ''} — ${worktree ? 'double-click to switch to that worktree' : group.local ? 'double-click to checkout' : `double-click to check out ${group.label} from it (fast-forwards the local branch when it is behind)`}, right-click for actions`
       }
       onDoubleClick={(e) => {
         if (group.tag || group.detachedHead || group.stash) return;

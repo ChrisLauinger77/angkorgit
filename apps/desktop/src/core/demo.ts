@@ -174,6 +174,17 @@ export const demoBranches: BranchInfo[] = [
   { name: 'origin/main', isHead: false, isRemote: true, upstream: null, ahead: 0, behind: 0, targetOid: ALL_COMMITS[2].oid },
 ];
 
+const demoRefIndex = (name: string): number => {
+  const oid = demoBranches.find((b) => b.name === name)?.targetOid ?? demoTags.find((t) => t.name === name)?.targetOid;
+  return oid ? ALL_COMMITS.findIndex((c) => c.oid === oid) : -1;
+};
+
+export function demoCanFastForward(target: string, source: string): boolean {
+  const targetIndex = demoRefIndex(target);
+  const sourceIndex = demoRefIndex(source);
+  return targetIndex >= 0 && sourceIndex >= 0 && sourceIndex < targetIndex;
+}
+
 export const demoTags: TagInfo[] = [
   { name: 'v0.4.0', targetOid: ALL_COMMITS[2].oid, message: 'Release 0.4.0', isAnnotated: true },
   { name: 'v0.3.0', targetOid: ALL_COMMITS[40].oid, message: null, isAnnotated: false },

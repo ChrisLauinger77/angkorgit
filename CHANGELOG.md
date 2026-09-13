@@ -7,6 +7,11 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Fast-forward from the branch menu.** Right-clicking a branch in the sidebar or a
+  branch chip in the graph now offers "Fast-forward current to this" next to "Merge
+  into current". It is enabled only when the current branch is strictly behind, so
+  syncing a fork's `main` with `upstream/main` is one click and leaves no merge
+  commit. "Merge into current" keeps recording a merge commit. (#20)
 - **Avatars from your connected account.** When Gravatar has nothing for an author,
   the graph, commit view, file history and blame ask the repository's forge instead:
   GitHub and Bitbucket by the commit, GitLab (self-hosted included) by the author
@@ -27,6 +32,14 @@ All notable changes to AngKorGit are documented here. The format follows
   on PATH; macOS and Linux add the JetBrains Toolbox scripts folder.
 
 ### Fixed
+- **Remote branch tooltips say what double-click does.** A remote branch row or
+  chip used to promise "double-click to checkout"; it now says the local branch is
+  checked out from it and fast-forwarded when it is behind, which is what happens.
+  (#20)
+- **Switching tabs fetches again.** The fetch that runs when you open or switch to a
+  repository tab fired before the repository's remotes were loaded, found none and
+  gave up until the next auto fetch interval. It now waits for the remote list, so
+  the status bar's "Fetched just now" is true right after a tab switch. (#20)
 - The commit and working copy file menus said "Show in Finder" on Linux and
   Windows; they say "Show in file manager" there. (#18)
 - On Windows the command line tool installed into a folder that was never on PATH,

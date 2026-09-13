@@ -1001,6 +1001,26 @@ test('arrow keys move the working copy diff from file to file', async ({ page })
   await expect(page.locator('section[aria-label="Diff for src/data/palette-seed.sql"]')).toBeVisible();
 });
 
+test('branch menus offer a fast-forward entry next to merge, disabled when the current branch is ahead', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('develop', { exact: true }).click({ button: 'right' });
+  const sidebarMenu = page.getByRole('menu');
+  await expect(sidebarMenu.getByRole('menuitem', { name: 'Merge into current' })).toBeEnabled();
+  const sidebarFf = sidebarMenu.getByRole('menuitem', { name: 'Fast-forward current to this' });
+  await expect(sidebarFf).toBeVisible();
+  await expect(sidebarFf).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await page.getByTitle(/^feature\/diff-viewer · local/).first().click({ button: 'right' });
+  const graphMenu = page.getByRole('menu');
+  await expect(graphMenu.getByRole('menuitem', { name: 'Merge into current branch' })).toBeEnabled();
+  const graphFf = graphMenu.getByRole('menuitem', { name: 'Fast-forward current branch to this' });
+  await expect(graphFf).toBeVisible();
+  await expect(graphFf).toHaveAttribute('aria-disabled', 'true');
+});
+
 test('the checked-out branch chip is filled while other local chips stay tinted', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

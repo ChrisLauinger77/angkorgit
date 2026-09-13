@@ -344,7 +344,7 @@ export const ipc = {
     return invoke('merge_message', { path });
   },
   async mergeCanFastForward(path: string, target: string, source: string): Promise<boolean> {
-    if (!isTauri()) return false;
+    if (!isTauri()) return demo.demoCanFastForward(target, source);
     return invoke('merge_can_ff', { path, target, source });
   },
   async rebase(path: string, upstream: string): Promise<OpOutcome> {
