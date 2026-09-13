@@ -69,8 +69,13 @@ export interface ClonePreset {
   branch?: string;
 }
 
+export interface SettingsPreset {
+  section: 'appearance' | 'git' | 'accounts' | 'ai' | 'shortcuts';
+}
+
 export type DialogContext =
   | string
+  | SettingsPreset
   | InteractiveRebasePreset
   | CherryPickPreset
   | CreateWorktreePreset

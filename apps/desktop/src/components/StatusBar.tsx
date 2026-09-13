@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, Check, GitBranch, GitPullRequest, Pencil, RefreshCw, ZoomIn } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, GitBranch, GitPullRequest, Pencil, RefreshCw, Sparkles, ZoomIn } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import { useRepo } from '@/features/repository/store';
 import { useSettings } from '@/features/settings/store';
 import { useUi } from '@/features/ui/store';
 import { capCount, currentPullRequestUrl, timeAgo } from '@/shared/utils';
-import { forgeNoun, pickForgeRemote } from '@angkorgit/core';
+import { AI_PROVIDER_PRESETS, CLI_AGENTS, forgeNoun, pickForgeRemote } from '@angkorgit/core';
 
 const ZOOM_LEVELS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200];
 
@@ -32,6 +32,30 @@ export function StatusBar() {
   }, []);
   const zoom = useSettings((s) => s.zoom);
   const setZoom = useSettings((s) => s.setZoom);
+  const ai = useSettings((s) => s.ai);
+  const aiStatus = useSettings((s) => s.aiStatus);
+  const aiConfigured =
+    ai.provider === 'cli'
+      ? !!ai.cliAgent
+      : ai.provider === 'ollama' || ai.provider === 'lmstudio'
+        ? !!ai.model
+        : !!ai.apiKey && !!ai.model;
+  const aiName =
+    ai.provider === 'cli'
+      ? ai.cliAgent
+        ? CLI_AGENTS[ai.cliAgent].label
+        : ''
+      : AI_PROVIDER_PRESETS[ai.provider].label;
+  const aiLabel = aiConfigured ? aiName : 'Set up AI';
+  const aiHint = !aiConfigured
+    ? 'No AI provider is set up yet. Click to choose one in Settings.'
+    : aiStatus === 'ok'
+      ? `${aiName} answered the last connection test. Click to open the AI settings.`
+      : aiStatus === 'fail'
+        ? `${aiName} did not answer the last connection test. Click to open the AI settings.`
+        : aiStatus === 'stale'
+          ? `The AI settings changed since ${aiName} was last tested. Click to open them and run Test connection again.`
+          : `${aiName} is set up. Its connection has not been tested yet — click to open the AI settings and run Test connection.`;
   const [version, setVersion] = useState('');
 
   useEffect(() => {
@@ -117,6 +141,28 @@ export function StatusBar() {
       )}
 
       <span className="flex-1" />
+
+      <Hint label={aiHint}>
+        <button
+          type="button"
+          className="flex items-center gap-1 rounded px-1 hover:bg-surface-raised hover:text-foreground"
+          aria-label={aiLabel}
+          data-ai-status={aiConfigured ? aiStatus : 'unconfigured'}
+          onClick={() => openDialog('settings', { section: 'ai' })}
+        >
+          <Sparkles
+            className={cn(
+              'size-3',
+              aiConfigured && aiStatus === 'ok'
+                ? 'text-success'
+                : aiConfigured && aiStatus === 'fail'
+                  ? 'text-danger'
+                  : 'text-faint',
+            )}
+          />
+          {aiLabel}
+        </button>
+      </Hint>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

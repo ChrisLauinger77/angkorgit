@@ -12,6 +12,12 @@ All notable changes to AngKorGit are documented here. The format follows
   into current". It is enabled only when the current branch is strictly behind, so
   syncing a fork's `main` with `upstream/main` is one click and leaves no merge
   commit. "Merge into current" keeps recording a merge commit. (#20)
+- **AI provider in the status bar.** A chip next to the zoom control names the AI
+  provider in use, Gemini, Claude Code, Ollama and so on, with its icon green when
+  the last Test connection passed, red when it failed and plain when it has not been
+  tested since the settings changed. Nothing is polled; only Test connection writes
+  the result. With no provider set up it reads "Set up AI", and clicking it opens
+  the AI settings either way. (#23)
 - **Open the repository in the browser.** Right-click a remote in the sidebar for
   "Open in browser", or run "Open repository in browser" from the palette, and the
   repository page on GitHub, GitLab, Bitbucket or a self-hosted forge opens in your

@@ -4,6 +4,7 @@ import {
   AI_PROVIDER_PRESETS,
   DEFAULT_AI_STYLE,
   type AiConfig,
+  type AiConnectionStatus,
   type AiProviderKind,
   type AiStyleConfig,
   type CommitStyle,
@@ -145,6 +146,7 @@ interface SettingsState {
   profiles: IdentityProfile[];
   ai: AiConfig;
   aiProfiles: Partial<Record<AiProviderKind, AiProfile>>;
+  aiStatus: AiConnectionStatus;
   aiKeysMigrated: boolean;
   aiStyle: AiStyleConfig;
   setTheme: (theme: Theme) => void;
@@ -167,6 +169,7 @@ interface SettingsState {
   removeProfile: (id: string) => void;
   setAi: (config: Partial<AiConfig>) => void;
   setAiProvider: (provider: AiProviderKind) => void;
+  setAiStatus: (status: AiConnectionStatus) => void;
   setCommitStyle: (style: Partial<CommitStyle>) => void;
   setReviewStyle: (style: Partial<ReviewStyle>) => void;
 }
@@ -202,6 +205,11 @@ function stripApiKeys(
   ) as Partial<Record<AiProviderKind, AiProfile>>;
 }
 
+const AI_CONNECTION_KEYS = ['provider', 'apiKey', 'baseUrl', 'model', 'cliAgent', 'cliPath'] as const;
+
+const staleStatus = (status: AiConnectionStatus): AiConnectionStatus =>
+  status === 'untested' ? 'untested' : 'stale';
+
 export const useSettings = create<SettingsState>()(
   persist(
     (set, get) => ({
@@ -222,6 +230,7 @@ export const useSettings = create<SettingsState>()(
       profiles: [],
       ai: { provider: 'ollama', apiKey: '', model: 'llama3.1', baseUrl: '' },
       aiProfiles: {},
+      aiStatus: 'untested',
       aiKeysMigrated: false,
       aiStyle: DEFAULT_AI_STYLE,
       setTheme: (theme) => {
@@ -268,8 +277,14 @@ export const useSettings = create<SettingsState>()(
         if (config.apiKey !== undefined && config.apiKey !== s.ai.apiKey) {
           void ipc.aiKeySet(provider, config.apiKey);
         }
-        set({ ai, aiProfiles: { ...s.aiProfiles, [provider]: profile } });
+        const connectionChanged = AI_CONNECTION_KEYS.some((key) => ai[key] !== s.ai[key]);
+        set({
+          ai,
+          aiProfiles: { ...s.aiProfiles, [provider]: profile },
+          aiStatus: connectionChanged ? staleStatus(s.aiStatus) : s.aiStatus,
+        });
       },
+      setAiStatus: (aiStatus) => set({ aiStatus }),
       setAiProvider: (provider) => {
         const s = get();
         if (provider === s.ai.provider) return;
@@ -282,6 +297,7 @@ export const useSettings = create<SettingsState>()(
             [current.provider]: current.profile,
             [provider]: next,
           },
+          aiStatus: staleStatus(s.aiStatus),
         });
         if (!next.apiKey) void loadAiKey(provider);
       },

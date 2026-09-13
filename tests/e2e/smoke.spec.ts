@@ -1059,6 +1059,40 @@ test('blame is disabled for a file no commit has seen yet', async ({ page }) => 
   await expect(page.locator('section[aria-label="Diff for src/core/ipc.ts"]').getByRole('button', { name: 'Blame' })).toBeEnabled();
 });
 
+test('the status bar shows the AI connection state once AI is configured and tested', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const chip = page.locator('[data-ai-status]');
+  await expect(chip).toHaveAttribute('data-ai-status', 'untested');
+  await expect(chip).toHaveText('Ollama');
+  await chip.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Test connection' })).toBeVisible();
+  await dialog.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: /Installed AI CLI/ }).click();
+  await expect(chip).toHaveAttribute('data-ai-status', 'unconfigured');
+  await expect(chip).toHaveText(/Set up AI/);
+  await dialog.getByRole('button', { name: /Claude Code/ }).click();
+  await expect(chip).toHaveAttribute('data-ai-status', 'untested');
+  await expect(chip).toHaveText('Claude Code');
+  await dialog.getByRole('button', { name: 'Test connection' }).click();
+  await expect(dialog.getByText('Reachable', { exact: true })).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(chip).toHaveAttribute('data-ai-status', 'ok');
+  await expect(chip).toHaveText('Claude Code');
+  await chip.click();
+  await dialog.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: 'Ollama', exact: true }).click();
+  await expect(dialog.getByText('Settings changed since the last test')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(chip).toHaveAttribute('data-ai-status', 'stale');
+  await expect(chip).toHaveText('Ollama');
+  await page.reload();
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.locator('[data-ai-status]')).toHaveAttribute('data-ai-status', 'stale', { timeout: 10_000 });
+});
+
 test('the checked-out branch chip is filled while other local chips stay tinted', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

@@ -731,15 +731,15 @@ const SHORTCUTS: Array<[string, string[]]> = [
 
 export function SettingsDialog() {
   const repo = useRepo((s) => s.repo);
-  const { dialog, closeDialog } = useUi();
+  const { dialog, dialogContext, closeDialog } = useUi();
   const open = dialog === 'settings';
   const settings = useSettings();
+  const aiStatus = settings.aiStatus;
 
   const [section, setSection] = useState<SectionId>('appearance');
   const [gitName, setGitName] = useState('');
   const [gitEmail, setGitEmail] = useState('');
   const [testing, setTesting] = useState(false);
-  const [aiStatus, setAiStatus] = useState<'unknown' | 'ok' | 'fail'>('unknown');
   const [profileLabel, setProfileLabel] = useState('');
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
@@ -833,16 +833,19 @@ export function SettingsDialog() {
     setTesting(true);
     try {
       const ok = await getAiProvider().ping();
-      setAiStatus(ok ? 'ok' : 'fail');
+      settings.setAiStatus(ok ? 'ok' : 'fail');
     } catch {
-      setAiStatus('fail');
+      settings.setAiStatus('fail');
     } finally {
       setTesting(false);
     }
   };
   useEffect(() => {
-    setAiStatus('unknown');
-  }, [settings.ai.provider, settings.ai.baseUrl, settings.ai.apiKey, settings.ai.cliAgent]);
+    if (!open) return;
+    if (dialogContext && typeof dialogContext === 'object' && 'section' in dialogContext) {
+      setSection(dialogContext.section);
+    }
+  }, [open, dialogContext]);
 
   const preset = AI_PROVIDER_PRESETS[settings.ai.provider];
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
@@ -1355,7 +1358,8 @@ export function SettingsDialog() {
                               <span className="text-danger">Not reachable. Check the key, URL or that the local server is running.</span>
                             </>
                           )}
-                          {aiStatus === 'unknown' && <span className="text-faint">Connection not tested yet</span>}
+                          {aiStatus === 'untested' && <span className="text-faint">Connection not tested yet</span>}
+                          {aiStatus === 'stale' && <span className="text-faint">Settings changed since the last test</span>}
                         </span>
                         <Button variant="secondary" size="sm" onClick={() => void testAi()} disabled={testing}>
                           {testing ? <Spinner /> : <Wifi className="size-3.5" />}
