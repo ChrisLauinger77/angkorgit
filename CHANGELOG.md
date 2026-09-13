@@ -6,6 +6,14 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-09-13
+
+The fork workflow release. Fast-forward from the branch menu, every remote fetched
+on each tab switch, the repository page one click away, and the AI provider in the
+status bar. Two testers filed six issues in two days and every one of them shaped
+this version, including a blame crash on uncommitted edits and hunk staging that
+only worked on the first hunk.
+
 ### Added
 - **Fast-forward from the branch menu.** Right-clicking a branch in the sidebar or a
   branch chip in the graph now offers "Fast-forward current to this" next to "Merge
@@ -37,7 +45,6 @@ All notable changes to AngKorGit are documented here. The format follows
 - **Zed and Flatpak editors are detected on Linux.** Zed's `zeditor` package name
   and the Flatpak exports of Zed, VS Code, Sublime Text, GNOME Builder and Kate are
   recognised by the External editor picker. (#18)
-
 - **Editors are found in their default install folders.** On Windows the External
   editor picker looks in the usual install locations of VS Code, Cursor, Windsurf,
   Sublime Text and the JetBrains Toolbox scripts even when their launcher is not
@@ -1245,7 +1252,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/cheat2001/angkorgit/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cheat2001/angkorgit/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cheat2001/angkorgit/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cheat2001/angkorgit/compare/v0.10.0...v0.11.0
