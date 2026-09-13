@@ -2019,6 +2019,15 @@ update CLAUDE.md or docs/ — never the code.
   failing twice on 2026-09-13; a temporary localStorage guard log proved every
   skipped tick was `hidden: true` and every visible switch fetched. Bring the
   window to the front (`open -a AngKorGit`) before switching.
+- **G43 — sidebar drag-and-drop does not work on Linux under Wayland**: a user on
+  Debian sid / GNOME 50 / Mutter (Wayland) reported that dragging `upstream/main`
+  onto `main` shows GTK's no-drop X cursor and never opens the drop dialog (issue
+  #20, 2026-09-13). Our drop target is gated on React state, not on dataTransfer
+  types, and with `dragDropEnabled: false` wry attaches no GTK drag handlers, so
+  WebKitGTK's own HTML5 DnD is in charge — and that has been unreliable under
+  Wayland for years. Nothing to fix in the app; every drag gesture must have a menu
+  equivalent (merge, rebase and fast-forward all live in the branch right-click
+  menu, which is what the user settled on). Untested on X11.
 - **G41 — the local gate is macOS; two things only CI catches**: (1) an import used
   solely inside a `#[cfg(target_os = "macos")]` item is an unused import on Linux
   and Windows, and clippy runs with `-D warnings` there — qualify the type inline
