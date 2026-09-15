@@ -14,6 +14,7 @@ import {
 } from '@angkorgit/design-system';
 import { ipc, listen, pickDirectory } from '@/core/ipc';
 import { useUi, type ClonePreset, type DialogContext } from '@/features/ui/store';
+import { useSettings } from '@/features/settings/store';
 
 function clonePreset(ctx: DialogContext): ClonePreset | null {
   if (!ctx || typeof ctx === 'string' || !('url' in ctx) || !('into' in ctx)) return null;
@@ -22,6 +23,8 @@ function clonePreset(ctx: DialogContext): ClonePreset | null {
 
 export function CloneDialog({ onCloned }: { onCloned: (path: string) => void }) {
   const { dialog, dialogContext, closeDialog } = useUi();
+  const cloneRoot = useSettings((s) => s.cloneRoot);
+  const setCloneRoot = useSettings((s) => s.setCloneRoot);
   const open = dialog === 'clone';
   const [url, setUrl] = useState('');
   const [into, setInto] = useState('');
@@ -39,8 +42,10 @@ export function CloneDialog({ onCloned }: { onCloned: (path: string) => void }) 
     const preset = clonePreset(dialogContext);
     if (preset) {
       setUrl(preset.url);
-      setInto(preset.into);
+      setInto(preset.into || cloneRoot || '');
       setBranch(preset.branch ?? '');
+    } else if (cloneRoot) {
+      setInto(cloneRoot);
     }
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -52,7 +57,7 @@ export function CloneDialog({ onCloned }: { onCloned: (path: string) => void }) 
       cancelled = true;
       unlisten?.();
     };
-  }, [open, dialogContext]);
+  }, [open, dialogContext, cloneRoot]);
 
   const clone = async () => {
     if (progress !== null || !url.trim() || !into.trim()) return;
@@ -61,6 +66,7 @@ export function CloneDialog({ onCloned }: { onCloned: (path: string) => void }) 
       const name = url.trim().replace(/\.git$/, '').split('/').pop() ?? 'repository';
       const target = `${into.replace(/\/$/, '')}/${name}`;
       const path = await ipc.cloneRepository(url.trim(), target, branch.trim() || null);
+      setCloneRoot(into.trim().replace(/\/$/, ''));
       toast.success('Repository cloned');
       closeDialog();
       onCloned(path);

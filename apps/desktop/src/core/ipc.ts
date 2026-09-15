@@ -396,6 +396,10 @@ export const ipc = {
     if (!isTauri()) return [{ name: 'origin', url: 'git@github.com:demo/angkorgit.git' }];
     return invoke('remote_list', { path });
   },
+  async remoteAdd(path: string, name: string, url: string): Promise<void> {
+    if (!isTauri()) return;
+    return invoke('remote_add', { path, name, url });
+  },
   async remoteEdit(path: string, name: string, newName: string, url: string): Promise<void> {
     if (!isTauri()) return;
     return invoke('remote_edit', { path, name, newName, url });

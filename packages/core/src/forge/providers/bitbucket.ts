@@ -116,7 +116,12 @@ export function bitbucketForgeProvider(remote: ForgeRemote, http: HttpClient): F
       const data = (await request('POST', `/repositories/${repoPath}/pullrequests`, {
         title: input.title,
         description: input.body,
-        source: { branch: { name: input.sourceBranch } },
+        source: {
+          branch: { name: input.sourceBranch },
+          ...(input.sourceRepo
+            ? { repository: { full_name: `${input.sourceRepo.owner}/${input.sourceRepo.repo}` } }
+            : {}),
+        },
         destination: { branch: { name: input.targetBranch } },
         ...(input.draft ? { draft: true } : {}),
         ...(input.reviewerIds?.length

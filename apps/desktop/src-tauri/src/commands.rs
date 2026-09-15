@@ -429,6 +429,11 @@ pub async fn remote_list(path: String) -> AppResult<Vec<RemoteInfo>> {
 }
 
 #[tauri::command]
+pub async fn remote_add(path: String, name: String, url: String) -> AppResult<()> {
+    blocking(move || remote::add(&path, &name, &url)).await
+}
+
+#[tauri::command]
 pub async fn remote_edit(
     path: String,
     name: String,

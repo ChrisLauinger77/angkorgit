@@ -136,9 +136,10 @@ export function githubForgeProvider(remote: ForgeRemote, http: HttpClient): Forg
         }));
     },
     async createPullRequest(input: CreatePullRequestInput): Promise<PullRequestInfo> {
+      const head = input.sourceRepo ? `${input.sourceRepo.owner}:${input.sourceBranch}` : input.sourceBranch;
       const data = (await request('POST', `/repos/${repoPath}/pulls`, {
         title: input.title,
-        head: input.sourceBranch,
+        head,
         base: input.targetBranch,
         body: input.body,
         draft: input.draft,

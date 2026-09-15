@@ -1651,6 +1651,35 @@ fn add_origin(local: &TempRepo, origin: &TempRepo) {
     assert!(status.success());
 }
 
+#[test]
+fn remote_add_registers_the_remote_and_fetch_uses_it() {
+    let origin = TempRepo::new();
+    origin.write("a.txt", "one\n");
+    let tip = commit_all(&origin, "first");
+    let local = TempRepo::new();
+    local.write("b.txt", "two\n");
+    commit_all(&local, "local");
+
+    core::remote_add(local.path(), "upstream", origin.path()).unwrap();
+    let remotes = core::remote_list(local.path()).unwrap();
+    assert_eq!(remotes.len(), 1);
+    assert_eq!(remotes[0].name, "upstream");
+    assert_eq!(remotes[0].url, origin.path());
+
+    let dup = core::remote_add(local.path(), "upstream", origin.path()).unwrap_err();
+    assert!(dup.to_string().contains("already exists"));
+    let blank = core::remote_add(local.path(), "  ", origin.path()).unwrap_err();
+    assert!(blank.to_string().contains("required"));
+
+    core::fetch(local.path(), "upstream", false, false).unwrap();
+    let fetched = Command::new("git")
+        .args(["rev-parse", "refs/remotes/upstream/master"])
+        .current_dir(&local.dir)
+        .output()
+        .expect("git CLI available");
+    assert_eq!(String::from_utf8_lossy(&fetched.stdout).trim(), tip);
+}
+
 fn set_pull_head(origin: &TempRepo, oid: &str) {
     let status = Command::new("git")
         .args(["update-ref", "refs/pull/1/head", oid])

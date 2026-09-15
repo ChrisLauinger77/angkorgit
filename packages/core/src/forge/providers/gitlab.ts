@@ -121,11 +121,22 @@ export function gitlabForgeProvider(remote: ForgeRemote, http: HttpClient): Forg
       const reviewerIds = (input.reviewerIds ?? [])
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id));
-      const data = (await request('POST', `/projects/${projectId}/merge_requests`, {
+      let postProject = projectId;
+      let targetProjectId: number | null = null;
+      if (input.sourceRepo) {
+        const target = (await request('GET', `/projects/${projectId}`)) as { id?: number };
+        if (typeof target.id !== 'number') {
+          throw new ForgeError('GitLab did not return the target project id', 'gitlab');
+        }
+        targetProjectId = target.id;
+        postProject = encodeURIComponent(`${input.sourceRepo.owner}/${input.sourceRepo.repo}`);
+      }
+      const data = (await request('POST', `/projects/${postProject}/merge_requests`, {
         title,
         description: input.body,
         source_branch: input.sourceBranch,
         target_branch: input.targetBranch,
+        ...(targetProjectId !== null ? { target_project_id: targetProjectId } : {}),
         ...(reviewerIds.length ? { reviewer_ids: reviewerIds } : {}),
       })) as GitlabMergeRequest;
       return mapMergeRequest(data);

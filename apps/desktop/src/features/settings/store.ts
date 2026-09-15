@@ -142,6 +142,7 @@ interface SettingsState {
   showPullRequests: boolean;
   cherryPickRecordOrigin: boolean;
   worktreeRoot: string | null;
+  cloneRoot: string | null;
   editorId: string | null;
   profiles: IdentityProfile[];
   ai: AiConfig;
@@ -163,6 +164,7 @@ interface SettingsState {
   setShowPullRequests: (value: boolean) => void;
   setCherryPickRecordOrigin: (value: boolean) => void;
   setWorktreeRoot: (value: string | null) => void;
+  setCloneRoot: (value: string | null) => void;
   setEditorId: (value: string | null) => void;
   addProfile: (profile: Omit<IdentityProfile, 'id'>) => void;
   updateProfile: (id: string, patch: Partial<Omit<IdentityProfile, 'id'>>) => void;
@@ -223,6 +225,7 @@ export const useSettings = create<SettingsState>()(
       showPullRequests: true,
       cherryPickRecordOrigin: true,
       worktreeRoot: null,
+      cloneRoot: null,
       editorId: null,
       reduceMotion:
         typeof window !== 'undefined' &&
@@ -256,6 +259,7 @@ export const useSettings = create<SettingsState>()(
       setShowPullRequests: (showPullRequests) => set({ showPullRequests }),
       setCherryPickRecordOrigin: (cherryPickRecordOrigin) => set({ cherryPickRecordOrigin }),
       setWorktreeRoot: (worktreeRoot) => set({ worktreeRoot }),
+      setCloneRoot: (cloneRoot) => set({ cloneRoot }),
       setEditorId: (editorId) => set({ editorId }),
       setReduceMotion: (reduceMotion) => {
         applyReduceMotion(reduceMotion);

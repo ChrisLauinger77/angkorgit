@@ -59,7 +59,7 @@ import {
   Textarea,
   cn,
 } from '@angkorgit/design-system';
-import { ipc, pickFile, type CliToolStatus, type HostingAccount } from '@/core/ipc';
+import { ipc, pickDirectory, pickFile, type CliToolStatus, type HostingAccount } from '@/core/ipc';
 import { Avatar } from '@/components/Avatar';
 import { confirmDialog } from '@/components/confirm';
 import { useRepo } from '@/features/repository/store';
@@ -71,7 +71,7 @@ import { useEditors } from './editors';
 import { AccountsTab, providerIcon } from './AccountsTab';
 import { Field, SettingCard, SettingEmpty, SettingRow } from './SettingCard';
 import { getAiProvider } from '@/features/ai/client';
-import { modKey } from '@/shared/utils';
+import { modKey, shortenHome } from '@/shared/utils';
 
 type SectionId = 'appearance' | 'git' | 'accounts' | 'ai' | 'shortcuts';
 
@@ -532,6 +532,37 @@ function CommitStyleCard() {
           )}
         </div>
       </div>
+    </SettingCard>
+  );
+}
+
+function CloneFolderCard() {
+  const cloneRoot = useSettings((s) => s.cloneRoot);
+  const setCloneRoot = useSettings((s) => s.setCloneRoot);
+  const browse = async () => {
+    const dir = await pickDirectory('Choose the default clone folder');
+    if (dir) setCloneRoot(dir);
+  };
+  return (
+    <SettingCard
+      title="Clone destination"
+      description="The folder the clone dialog starts from. The last folder you cloned into is remembered here automatically."
+      action={
+        <span className="flex items-center gap-1.5">
+          {cloneRoot && (
+            <Button variant="ghost" size="sm" onClick={() => setCloneRoot(null)}>
+              Clear
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => void browse()}>
+            <FolderOpen className="size-3.5" /> Choose folder
+          </Button>
+        </span>
+      }
+    >
+      <p className={cn('truncate font-mono text-[11px]', cloneRoot ? 'text-muted' : 'text-faint')} title={cloneRoot ?? undefined}>
+        {cloneRoot ? shortenHome(cloneRoot) : 'Not set — the dialog asks for a folder each time'}
+      </p>
     </SettingCard>
   );
 }
@@ -1050,6 +1081,8 @@ export function SettingsDialog() {
                       />
                     }
                   />
+
+                  <CloneFolderCard />
 
                   <CliToolCard />
 

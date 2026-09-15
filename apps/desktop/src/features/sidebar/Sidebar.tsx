@@ -261,7 +261,7 @@ export function Sidebar() {
   const [stashMenu, setStashMenu] = useState<{ x: number; y: number; stash: StashInfo } | null>(null);
   const [tagMenu, setTagMenu] = useState<{ x: number; y: number; tag: TagInfo } | null>(null);
   const [prMenu, setPrMenu] = useState<{ x: number; y: number; pr: PullRequestInfo } | null>(null);
-  const [editRemote, setEditRemote] = useState<{ original: string; name: string; url: string } | null>(null);
+  const [editRemote, setEditRemote] = useState<{ original: string | null; name: string; url: string } | null>(null);
   const [savingRemote, setSavingRemote] = useState(false);
 
   const openSubmodule = (sub: SubmoduleInfo) => {
@@ -471,10 +471,20 @@ export function Sidebar() {
     const edit = editRemote;
     if (!edit || !edit.name.trim() || !edit.url.trim() || savingRemote) return;
     setSavingRemote(true);
-    await act(`Update remote ${edit.original}`, () => ipc.remoteEdit(path, edit.original, edit.name, edit.url));
+    const original = edit.original;
+    if (original === null) {
+      const name = edit.name.trim();
+      await act(`Add remote ${name}`, async () => {
+        await ipc.remoteAdd(path, name, edit.url);
+        return ipc.fetch(path, name, true, false);
+      });
+    } else {
+      await act(`Update remote ${original}`, () => ipc.remoteEdit(path, original, edit.name, edit.url));
+    }
     setSavingRemote(false);
     setEditRemote(null);
   };
+  const openAddRemote = () => setEditRemote({ original: null, name: remotes.length === 0 ? 'origin' : '', url: '' });
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -1064,12 +1074,29 @@ export function Sidebar() {
           </>
         )}
 
-        <Section {...section('remotes')} icon={<Cloud className="size-3.5" />} title="Remotes" count={remoteBranches.length}>
+        <Section
+          {...section('remotes')}
+          icon={<Cloud className="size-3.5" />}
+          title="Remotes"
+          count={remoteBranches.length}
+          action={
+            <Hint label="Add remote">
+              <Button variant="ghost" size="icon-sm" aria-label="Add remote" onClick={openAddRemote}>
+                <Plus className="size-3.5" />
+              </Button>
+            </Hint>
+          }
+        >
           {remotes.length === 0 && !hasRemoteBranches && !repoRefreshing && (
             <SidebarEmpty
               icon={<Cloud />}
               title="No remotes"
               description="This repository lives only on this machine. Add a remote to push, pull and open pull requests."
+              action={
+                <Button variant="secondary" size="sm" className="w-full justify-center" onClick={openAddRemote}>
+                  <Plus className="size-3.5" /> Add remote
+                </Button>
+              }
             />
           )}
           {q
@@ -1472,8 +1499,12 @@ export function Sidebar() {
       <Dialog open={editRemote !== null} onOpenChange={(o) => !o && setEditRemote(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit remote</DialogTitle>
-            <DialogDescription>Rename the remote or point it at a different URL.</DialogDescription>
+            <DialogTitle>{editRemote?.original === null ? 'Add remote' : 'Edit remote'}</DialogTitle>
+            <DialogDescription>
+              {editRemote?.original === null
+                ? 'Name the remote and paste its URL. It is fetched right away so its branches show up here.'
+                : 'Rename the remote or point it at a different URL.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1.5 text-xs text-muted">
@@ -1484,7 +1515,7 @@ export function Sidebar() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void submitEditRemote();
                 }}
-                placeholder="origin"
+                placeholder={remotes.length === 0 ? 'origin' : 'upstream'}
                 autoFocus
               />
             </label>
@@ -1509,7 +1540,7 @@ export function Sidebar() {
               disabled={savingRemote || !editRemote?.name.trim() || !editRemote?.url.trim()}
               onClick={() => void submitEditRemote()}
             >
-              Save changes
+              {editRemote?.original === null ? 'Add remote' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
