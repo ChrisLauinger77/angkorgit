@@ -1,6 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { DiffLine, FileDiff } from '@angkorgit/core';
+import { clipRenderedLine } from '@angkorgit/core';
 import { cn } from '@angkorgit/design-system';
 import { CodeLine, lineBg, pairHunkLines, type SearchRanges } from './diffShared';
 
@@ -106,10 +107,10 @@ function contentWidth(lines: Iterable<string>): number {
 function* rowContents(rows: FlatRow[]): Iterable<string> {
   for (const row of rows) {
     if (row.kind === 'line') {
-      yield row.line.content;
+      yield clipRenderedLine(row.line.content).text;
     } else if (row.kind === 'pair') {
-      if (row.left) yield row.left.content;
-      if (row.right) yield row.right.content;
+      if (row.left) yield clipRenderedLine(row.left.content).text;
+      if (row.right) yield clipRenderedLine(row.right.content).text;
     }
   }
 }
@@ -252,7 +253,7 @@ function useDiffVirtualizer(rows: FlatRow[], scrollRef: React.RefObject<HTMLDivE
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => (rows[index].kind === 'header' ? HEADER_H : LINE_H),
-    overscan: 24,
+    overscan: 8,
   });
 }
 
@@ -266,7 +267,8 @@ function useHorizontalPan(
   const x = useRef(0);
   useEffect(() => {
     let raf = 0;
-    const maxX = () => {
+    let limit: number | null = null;
+    const measureLimit = () => {
       const pane = panes.find((p) => p.current)?.current;
       if (!pane) return 0;
       let w = width;
@@ -274,6 +276,10 @@ function useHorizontalPan(
         if (layer.current) w = Math.max(w, layer.current.scrollWidth);
       }
       return Math.max(0, w - pane.clientWidth);
+    };
+    const maxX = () => {
+      if (limit === null) limit = measureLimit();
+      return limit;
     };
     const apply = () => {
       raf = 0;
@@ -296,13 +302,19 @@ function useHorizontalPan(
       if (!raf) raf = requestAnimationFrame(apply);
     };
     const els = panes.flatMap((p) => (p.current ? [p.current] : []));
+    const observer = new ResizeObserver(() => {
+      limit = null;
+      if (!raf) raf = requestAnimationFrame(apply);
+    });
     for (const el of els) {
       el.addEventListener('wheel', onWheel, { passive: false });
       panControllers.set(el, panBy);
+      observer.observe(el);
     }
     apply();
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      observer.disconnect();
       for (const el of els) {
         el.removeEventListener('wheel', onWheel);
         panControllers.delete(el);
@@ -390,7 +402,7 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
             );
           })}
         </div>
-        <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4 }}>
+        <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4, willChange: 'transform' }}>
           {items.map((item) => {
             const row = rows[item.index];
             if (row.kind !== 'line') return null;
@@ -496,7 +508,7 @@ function SplitHalf({
             );
           })}
         </div>
-        <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4 }}>
+        <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4, willChange: 'transform' }}>
           {items.map((item) => {
             const row = rows[item.index];
             const line = row.kind === 'pair' ? (side === 'old' ? row.left : row.right) : null;

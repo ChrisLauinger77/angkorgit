@@ -5,6 +5,7 @@ export * from './git/fileFilter';
 export * from './git/blameable';
 export * from './graph/layout';
 export * from './diff/wordDiff';
+export * from './diff/renderCap';
 export * from './conflicts/parse';
 export * from './ai/types';
 export * from './ai/style';
