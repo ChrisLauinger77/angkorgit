@@ -6,6 +6,39 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Add a remote from the sidebar.** The Remotes section header has a "+" and the
+  empty state an "Add remote" button. Name it, paste the URL, and it is fetched right
+  away so its branches appear. Remove was already there; add never made it in. (#26)
+- **Pull requests from a fork into upstream.** When a repository has two remotes on
+  the same host that point at different repositories, the create dialog gains an
+  "Into repository" choice, pre-set to `upstream` when there is one. The target
+  branch list, default branch and reviewers follow the chosen repository, and the
+  request is filed there with the fork as its source on GitHub, GitLab and Bitbucket
+  Cloud. (#26)
+- **Default clone folder.** The clone dialog starts from the last folder you cloned
+  into, and Settings → Git → Clone destination lets you pick or clear it. (#26)
+- **Right-click menu in the terminal.** Copy, Paste, Select all and Clear terminal. (#26)
+
+### Fixed
+- **Diffs with very long lines no longer freeze the scroll on macOS.** A minified
+  bundle with lines of 50,000 to 300,000 characters used to stall the diff for up
+  to a second per frame on WebKit while Chromium stayed smooth. Rows now render at
+  most 5,000 characters, with a "… n more characters" tag on the clipped ones, and
+  clipped rows skip syntax highlighting. On a synthetic copy of the reported file the
+  worst frame went from 1.05 s to 51 ms and the diff opens in a third of the time.
+  Copy still uses the full line text. (#27)
+- **Horizontal scrolling in a diff stays responsive under load.** The pan of the two
+  text layers is composited now instead of repainting every frame, and its scroll
+  limit is measured once per gesture instead of on every wheel event, so a busy
+  session no longer makes sideways scrolling lag while vertical scrolling feels fine.
+
+### Changed
+- Diff text renders without font ligatures. WebKit shapes ligature fonts on a slower
+  path, which cost a factor of 3.5 on long minified rows, and a ligature can hide a
+  one-character difference between two lines. Fewer rows are rendered off screen
+  while scrolling (overscan 24 → 8), which shortens each scroll burst.
+
 ## [0.14.0] — 2026-09-13
 
 The fork workflow release. Fast-forward from the branch menu, every remote fetched
