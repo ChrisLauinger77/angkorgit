@@ -52,6 +52,36 @@ pub mod test_api {
     };
 }
 
+#[cfg(target_os = "linux")]
+fn compact_wayland_titlebar(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    use gtk::prelude::{CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt};
+    use tauri::Manager;
+
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let gtk_window = window.gtk_window()?;
+    let Some(titlebar) = gtk_window.titlebar() else {
+        return Ok(());
+    };
+    let provider = gtk::CssProvider::new();
+    provider.load_from_data(
+        b".angkorgit-compact-titlebar headerbar { min-height: 28px; padding: 0; }\
+          .angkorgit-compact-titlebar headerbar button.titlebutton { min-height: 24px; min-width: 24px; padding: 0; margin: 0; }",
+    )?;
+    titlebar
+        .style_context()
+        .add_class("angkorgit-compact-titlebar");
+    if let Some(screen) = titlebar.screen() {
+        gtk::StyleContext::add_provider_for_screen(
+            &screen,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
+    Ok(())
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
@@ -64,34 +94,7 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
             #[cfg(target_os = "linux")]
-            if let Some(window) = app.get_webview_window("main") {
-                use gtk::prelude::{
-                    CssProviderExt, GtkWindowExt, StyleContextExt, WidgetExt,
-                };
-
-                // Tao 0.35 installs a GtkHeaderBar inside an EventBox on Wayland. The
-                // EventBox is the window's drag surface, so keep it in place and only
-                // compact its presentation. Replacing the titlebar here is too late:
-                // Tauri has already realized the window by the time setup runs.
-                let gtk_window = window.gtk_window()?;
-                if let Some(titlebar) = gtk_window.titlebar() {
-                    let provider = gtk::CssProvider::new();
-                    provider.load_from_data(
-                        b".angkorgit-compact-titlebar headerbar { min-height: 28px; padding: 0; }\
-                          .angkorgit-compact-titlebar headerbar button.titlebutton { min-height: 24px; min-width: 24px; padding: 0; margin: 0; }",
-                    )?;
-                    titlebar
-                        .style_context()
-                        .add_class("angkorgit-compact-titlebar");
-                    if let Some(screen) = titlebar.screen() {
-                        gtk::StyleContext::add_provider_for_screen(
-                            &screen,
-                            &provider,
-                            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-                        );
-                    }
-                }
-            }
+            let _ = compact_wayland_titlebar(app);
             if let Ok(dir) = app.path().app_config_dir() {
                 let _ = core::accounts::CONFIG_DIR.set(dir);
             }

@@ -40,6 +40,10 @@ All notable changes to AngKorGit are documented here. The format follows
   text layers is composited now instead of repainting every frame, and its scroll
   limit is measured once per gesture instead of on every wheel event, so a busy
   session no longer makes sideways scrolling lag while vertical scrolling feels fine.
+- **A shorter titlebar on Linux under Wayland.** The windowing layer that Tauri
+  pins puts its own full-height GTK header bar on the window, so GNOME users had
+  an empty bar above the toolbar. It is now compacted to the size of its buttons.
+  X11 and other desktops are unchanged. Thanks to Christian Lauinger. (#25)
 
 ### Changed
 - Diff text renders without font ligatures. WebKit shapes ligature fonts on a slower
