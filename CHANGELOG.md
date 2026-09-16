@@ -6,6 +6,11 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **"Show in file manager" on Windows opens the file's folder again.** Explorer was
+  handed a path with forward slashes, quoted as a whole together with its `/select`
+  switch, and fell back to a default folder. Reported by Christian Lauinger. (#26)
+
 ## [0.15.0] — 2026-09-16
 
 The upstream release. Add a remote from the sidebar, file a pull request from a

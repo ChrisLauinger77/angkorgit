@@ -231,8 +231,10 @@ pub async fn reveal_path(path: String) -> AppResult<()> {
             }
             #[cfg(target_os = "windows")]
             {
+                use std::os::windows::process::CommandExt;
+                let native = path.replace('/', "\\");
                 crate::proc::hidden("explorer")
-                    .arg(format!("/select,{path}"))
+                    .raw_arg(format!("/select,\"{native}\""))
                     .status()
             }
             #[cfg(all(unix, not(target_os = "macos")))]
