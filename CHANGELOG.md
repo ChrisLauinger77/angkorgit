@@ -6,6 +6,15 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-09-16
+
+The upstream release. Add a remote from the sidebar, file a pull request from a
+fork into its upstream, and clone into the folder you always use. SSH remotes on
+Windows now accept the ed25519 and ECDSA host keys servers actually present, a
+minified diff no longer freezes on macOS, and a text selection stays on its lines
+while you scroll. Three contributors shaped this
+version, two of them with their first pull requests to the project.
+
 ### Added
 - **Add a remote from the sidebar.** The Remotes section header has a "+" and the
   empty state an "Add remote" button. Name it, paste the URL, and it is fetched right
@@ -1306,7 +1315,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/cheat2001/angkorgit/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cheat2001/angkorgit/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cheat2001/angkorgit/compare/v0.11.0...v0.12.0
