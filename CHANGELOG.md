@@ -21,6 +21,14 @@ All notable changes to AngKorGit are documented here. The format follows
 - **Right-click menu in the terminal.** Copy, Paste, Select all and Clear terminal. (#26)
 
 ### Fixed
+- **A text selection in a diff stays on the lines you selected while you scroll.**
+  Rows that leave the screen are unmounted by the virtualized diff, and the browser
+  used to move the selection boundary to whatever row took that slot, so after a
+  scroll the highlight sat on different lines. The selection is now tracked by line
+  and column and put back on the right text after every scroll, and ⌘C copies the
+  full selection even while the selected rows are off screen. Line numbers, change
+  markers and hunk headers are no longer selectable, so a drag that crosses them
+  keeps to the code.
 - **Diffs with very long lines no longer freeze the scroll on macOS.** A minified
   bundle with lines of 50,000 to 300,000 characters used to stall the diff for up
   to a second per frame on WebKit while Chromium stayed smooth. Rows now render at

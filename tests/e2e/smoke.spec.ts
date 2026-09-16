@@ -1513,3 +1513,72 @@ test('settings remembers a clone destination and the clone dialog starts there',
   await page.getByText('Clone repository', { exact: true }).first().click();
   await expect(page.getByPlaceholder('Destination folder')).toHaveValue('/tmp/repos');
 });
+
+test('a diff selection keeps its lines after scrolling away and back', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await page.getByText('palette-seed.sql').first().click();
+  await expect(page.getByText('temple gold').first()).toBeVisible();
+
+  const scroller = page.locator('section[aria-label^="Diff for"] div.overflow-y-auto');
+  await scroller.evaluate((el) => {
+    el.scrollTop = Math.max(0, el.scrollTop - 1500);
+  });
+  const visibleRowIndex = () =>
+    scroller.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const rows = [...el.querySelectorAll<HTMLElement>('[data-diff-row]')];
+      const visible = rows.find((row) => {
+        const rect = row.getBoundingClientRect();
+        return rect.top > box.top + 60 && rect.bottom < box.bottom - 120;
+      });
+      return visible ? Number(visible.dataset.diffRow) : null;
+    });
+  await expect.poll(visibleRowIndex).not.toBeNull();
+  const firstIndex = (await visibleRowIndex()) as number;
+  const rowAt = (index: number) => page.locator(`[data-diff-row="${index}"]`);
+  const first = await rowAt(firstIndex).boundingBox();
+  const last = await rowAt(firstIndex + 3).boundingBox();
+  if (!first || !last) throw new Error('diff rows not laid out');
+  await page.mouse.move(first.x + 30, first.y + first.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(last.x + 220, last.y + last.height / 2, { steps: 6 });
+  await page.mouse.up();
+
+  const selectionText = () => page.evaluate(() => window.getSelection()?.toString() ?? '');
+  const isRange = () => page.evaluate(() => window.getSelection()?.type === 'Range');
+  const before = await selectionText();
+  expect(before.split('\n')).toHaveLength(4);
+  expect(before).toContain('INSERT INTO palette');
+
+  await page.evaluate(() => {
+    (window as unknown as { __copied: string | null }).__copied = null;
+    document.addEventListener('copy', (e) => {
+      (window as unknown as { __copied: string | null }).__copied =
+        e.clipboardData?.getData('text/plain') ?? '';
+    });
+  });
+  const copied = () => page.evaluate(() => (window as unknown as { __copied: string | null }).__copied);
+  const resetCopied = () =>
+    page.evaluate(() => {
+      (window as unknown as { __copied: string | null }).__copied = null;
+    });
+
+  const top = await scroller.evaluate((el) => el.scrollTop);
+  for (const delta of [-4000, 4000]) {
+    await scroller.evaluate((el, value) => {
+      el.scrollTop = Math.max(0, el.scrollTop + value);
+    }, delta);
+    await expect(rowAt(firstIndex)).toHaveCount(0);
+    await expect.poll(isRange).toBe(true);
+    await resetCopied();
+    await page.keyboard.press('ControlOrMeta+c');
+    await expect.poll(copied).toBe(before);
+
+    await scroller.evaluate((el, value) => {
+      el.scrollTop = value;
+    }, top);
+    await expect(rowAt(firstIndex)).toHaveCount(1);
+    await expect.poll(selectionText).toBe(before);
+  }
+});

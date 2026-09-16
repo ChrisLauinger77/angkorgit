@@ -29,6 +29,7 @@ import { DiffViewer } from './DiffViewer';
 import { wrapUnavailable } from './diffShared';
 import { useDiffFind } from './diffSearch';
 import { useDiffSelectAll } from './diffCopy';
+import { diffSelectionText } from './diffSelection';
 import { changeBlocks, DiffMinimap, scrollToFraction } from './DiffMinimap';
 
 export function DiffPanel({ target }: { target: CenterDiffTarget }) {
@@ -502,7 +503,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
                 x: e.clientX,
                 y: e.clientY,
                 info,
-                selection: window.getSelection()?.toString() ?? '',
+                selection: diffSelectionText(scrollRef.current) ?? window.getSelection()?.toString() ?? '',
                 ranges: captureSelectionRanges(),
               });
             }}

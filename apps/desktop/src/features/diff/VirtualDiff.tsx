@@ -4,6 +4,7 @@ import type { DiffLine, FileDiff } from '@angkorgit/core';
 import { clipRenderedLine } from '@angkorgit/core';
 import { cn } from '@angkorgit/design-system';
 import { CodeLine, lineBg, pairHunkLines, type SearchRanges } from './diffShared';
+import { useStableSelection } from './diffSelection';
 
 export const LINE_H = 20;
 export const HEADER_H = 28;
@@ -127,7 +128,7 @@ const GutterCell = memo(function GutterCell({
   return (
     <span
       className={cn(
-        'block w-10 pr-1.5 text-right font-mono text-[10px] leading-5 text-faint',
+        'block w-10 select-none pr-1.5 text-right font-mono text-[10px] leading-5 text-faint',
         className,
       )}
     >
@@ -323,6 +324,18 @@ function useHorizontalPan(
   }, [panes, layers, width]);
 }
 
+function SelectionSentinel({ edge }: { edge: 'start' | 'end' }) {
+  return (
+    <span
+      aria-hidden
+      data-diff-sentinel={edge}
+      className={cn('diff-sentinel', edge === 'start' ? 'top-0' : 'bottom-0')}
+    >
+      {'\u00A0'}
+    </span>
+  );
+}
+
 function HeaderContent({
   header,
   hunkIndex,
@@ -333,7 +346,7 @@ function HeaderContent({
   hunkActions?: (hunkIndex: number) => React.ReactNode;
 }) {
   return (
-    <div className="flex h-7 w-fit max-w-full items-center gap-2 px-3">
+    <div className="flex h-7 w-fit max-w-full select-none items-center gap-2 px-3">
       <span className="truncate font-mono text-[10px] text-info">{header}</span>
       {hunkActions?.(hunkIndex)}
     </div>
@@ -352,6 +365,7 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
   const panes = useMemo(() => [paneRef], []);
   const layers = useMemo(() => [layerRef], []);
   useHorizontalPan(panes, layers, width);
+  useStableSelection(rows, scrollRef);
 
   return (
     <div className="flex items-start">
@@ -374,7 +388,7 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
                 <>
                   <GutterCell text={row.line.oldLineNo?.toString() ?? ''} className="border-r border-border-subtle" />
                   <GutterCell text={row.line.newLineNo?.toString() ?? ''} className="border-r border-border-subtle" />
-                  <span className={cn('w-6 text-center font-mono text-xs leading-5', marker(row.line.kind).cls)}>
+                  <span className={cn('w-6 select-none text-center font-mono text-xs leading-5', marker(row.line.kind).cls)}>
                     {marker(row.line.kind).char}
                   </span>
                 </>
@@ -403,12 +417,14 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
           })}
         </div>
         <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4, willChange: 'transform' }}>
+          <SelectionSentinel edge="start" />
           {items.map((item) => {
             const row = rows[item.index];
             if (row.kind !== 'line') return null;
             return (
               <div
                 key={item.key}
+                data-diff-row={item.index}
                 className="absolute left-0"
                 style={{ top: 0, height: item.size, transform: `translateY(${item.start}px)`, ...ROW_W }}
                 onContextMenu={
@@ -428,6 +444,7 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
               </div>
             );
           })}
+          <SelectionSentinel edge="end" />
         </div>
         {items.map((item) => {
           const row = rows[item.index];
@@ -509,6 +526,7 @@ function SplitHalf({
           })}
         </div>
         <div ref={layerRef} data-diff-layer className="absolute inset-y-0 left-0" style={{ width, minWidth: '100%', tabSize: 4, willChange: 'transform' }}>
+          <SelectionSentinel edge="start" />
           {items.map((item) => {
             const row = rows[item.index];
             const line = row.kind === 'pair' ? (side === 'old' ? row.left : row.right) : null;
@@ -516,6 +534,7 @@ function SplitHalf({
             return (
               <div
                 key={item.key}
+                data-diff-row={item.index}
                 className="absolute left-0"
                 style={{ top: 0, height: item.size, transform: `translateY(${item.start}px)`, ...ROW_W }}
                 onContextMenu={
@@ -535,6 +554,7 @@ function SplitHalf({
               </div>
             );
           })}
+          <SelectionSentinel edge="end" />
         </div>
         {items.map((item) => {
           const row = rows[item.index];
@@ -570,6 +590,7 @@ export function VirtualSplitDiff(props: CommonProps) {
   const width = useMemo(() => contentWidth(rowContents(props.rows)), [props.rows]);
 
   useHorizontalPan(panes, layers, width);
+  useStableSelection(props.rows, props.scrollRef);
 
   return (
     <div className="flex items-start">

@@ -28,6 +28,7 @@ import { DiffMinimap } from '@/features/diff/DiffMinimap';
 import { BlameView } from '@/features/blame/BlameView';
 import { useDiffFind } from '@/features/diff/diffSearch';
 import { useDiffSelectAll } from '@/features/diff/diffCopy';
+import { diffSelectionText } from '@/features/diff/diffSelection';
 import type { LineMenuInfo } from '@/features/diff/VirtualDiff';
 
 const HISTORY_PAGE = 500;
@@ -467,7 +468,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
                     x: e.clientX,
                     y: e.clientY,
                     info,
-                    selection: window.getSelection()?.toString() ?? '',
+                    selection: diffSelectionText(scrollRef.current) ?? window.getSelection()?.toString() ?? '',
                     ranges: captureSelectionRanges(),
                   });
                 }}
