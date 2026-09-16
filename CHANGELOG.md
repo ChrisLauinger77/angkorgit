@@ -21,6 +21,15 @@ All notable changes to AngKorGit are documented here. The format follows
 - **Right-click menu in the terminal.** Copy, Paste, Select all and Clear terminal. (#26)
 
 ### Fixed
+- **Fetch, pull and push over SSH on Windows.** The bundled libssh2 was built
+  with the WinCNG crypto backend, which cannot negotiate `ssh-ed25519` or ECDSA
+  host keys, so talking to servers like GitLab failed with "failed to set
+  hostkey preference: The requested method(s) are not currently supported"
+  before authentication was even attempted. The Windows build now compiles
+  libssh2 against the vendored OpenSSL instead, which speaks every host-key
+  type the git CLI does. Local Windows builds of the engine now need Perl on
+  `PATH` (e.g. Strawberry Perl) for the OpenSSL compile; release CI already
+  provides it.
 - **A text selection in a diff stays on the lines you selected while you scroll.**
   Rows that leave the screen are unmounted by the virtualized diff, and the browser
   used to move the selection boundary to whatever row took that slot, so after a

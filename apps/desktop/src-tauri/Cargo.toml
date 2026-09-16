@@ -37,6 +37,14 @@ which = "7"
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
 
+[target.'cfg(windows)'.dependencies]
+# The default WinCNG libssh2 backend cannot negotiate ssh-ed25519/ecdsa host
+# keys, so libgit2's hostkey-preference setup fails outright ("failed to set
+# hostkey preference") against servers like GitLab. Route the vendored libssh2
+# through OpenSSL on Windows instead; this compiles OpenSSL from source and
+# needs Perl available at build time.
+libssh2-sys = { version = "0.3", features = ["openssl-on-win32", "vendored-openssl"] }
+
 [profile.release]
 codegen-units = 1
 lto = true

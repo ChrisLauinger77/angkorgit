@@ -60,6 +60,7 @@ dependencies = [
  "git2",
  "gtk",
  "keyring",
+ "libssh2-sys",
  "notify-debouncer-mini",
  "portable-pty",
  "reqwest 0.12.28",
