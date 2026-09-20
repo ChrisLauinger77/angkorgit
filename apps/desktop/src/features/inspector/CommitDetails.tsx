@@ -60,6 +60,9 @@ import {
 } from '@/components/FileTree';
 import { basename, dirname, formatDate, isMac, timeAgo } from '@/shared/utils';
 
+const DESCRIPTION_MIN = 72;
+const DESCRIPTION_MAX = 360;
+
 const diffPath = (diff: CommitFileInfo) => diff.path;
 
 const VIRTUAL_FILE_THRESHOLD = 200;
@@ -234,6 +237,26 @@ export function CommitDetails({
   const [saving, setSaving] = useState(false);
   const draftSummaryRef = useRef<HTMLInputElement>(null);
   const draftBodyRef = useRef<HTMLTextAreaElement>(null);
+  const [descHeight, setDescHeight] = useState<number | null>(null);
+  const [descResizing, setDescResizing] = useState(false);
+  const startDescResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const el = draftBodyRef.current;
+    if (!el) return;
+    const startY = event.clientY;
+    const startHeight = el.getBoundingClientRect().height;
+    setDescResizing(true);
+    const onMove = (e: MouseEvent) => {
+      setDescHeight(Math.round(Math.min(DESCRIPTION_MAX, Math.max(DESCRIPTION_MIN, startHeight + (e.clientY - startY)))));
+    };
+    const onUp = () => {
+      setDescResizing(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
   const originalMessage = joinCommitMessage(commit.summary, commit.body);
   const startEditing = useCallback(() => {
     if (!canReword) return;
@@ -243,6 +266,7 @@ export function CommitDetails({
   useEffect(() => {
     setEditing(false);
     setSaving(false);
+    setDescHeight(null);
   }, [commit.oid]);
   useEffect(() => {
     if (editing) draftSummaryRef.current?.focus();
@@ -513,7 +537,9 @@ export function CommitDetails({
               }}
               placeholder="Description"
               aria-label="Commit description"
-              className="max-h-[260px] min-h-[72px] resize-none rounded-none border-0 bg-transparent px-3 py-2 text-xs leading-relaxed text-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"
+              rows={Math.min(12, Math.max(3, draftParts.body.split('\n').length + 1))}
+              style={descHeight === null ? undefined : { height: descHeight }}
+              className="min-h-[72px] resize-none rounded-none border-0 bg-transparent px-3 py-2 text-xs leading-relaxed text-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"
             />
             <div className="flex items-center justify-between gap-2 border-t border-border-subtle px-2 py-1.5">
               <span className="text-[11px] text-faint">{isMac ? '⌘⏎' : 'Ctrl+⏎'} to save · Esc to cancel</span>
@@ -525,6 +551,22 @@ export function CommitDetails({
                   {saving ? 'Saving…' : 'Save message'}
                 </Button>
               </span>
+            </div>
+            <div
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize description"
+              title="Drag to resize · double-click to reset"
+              onMouseDown={startDescResize}
+              onDoubleClick={() => setDescHeight(null)}
+              className="group/handle flex h-3 cursor-row-resize items-center justify-center"
+            >
+              <span
+                className={cn(
+                  'h-0.5 w-10 rounded-full transition-colors',
+                  descResizing ? 'bg-primary' : 'bg-border group-hover/handle:bg-primary/60',
+                )}
+              />
             </div>
           </div>
         ) : (

@@ -22,7 +22,8 @@ All notable changes to AngKorGit are documented here. The format follows
 - **Edit a commit message in place.** Select a commit you have not pushed yet and
   double-click its message in the inspector, or use the pencil button or the graph's
   right-click menu. The summary and description open as the same two fields as the
-  commit box, ⌘⏎ saves and Esc cancels. The latest commit is amended without touching
+  commit box, the description opens at the height of the message and can be dragged taller,
+  ⌘⏎ saves and Esc cancels. The latest commit is amended without touching
   your staged or unstaged changes; an older commit is rewritten together with the
   commits above it, which needs a clean working tree. Commits already on a remote keep
   the button disabled, and the change is undoable. Suggested by users who kept fixing

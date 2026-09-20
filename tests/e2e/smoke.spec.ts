@@ -1609,7 +1609,18 @@ test('an unpushed commit message can be edited in place while a pushed one canno
 
   await inspector.getByRole('button', { name: 'Edit commit message' }).click();
   await inspector.getByLabel('Commit summary').fill('feat(graph): virtualize commit rows, faster');
-  await inspector.getByLabel('Commit description').fill('Rows outside the viewport are never mounted.');
+  const description = inspector.getByLabel('Commit description');
+  const before = (await description.boundingBox())!.height;
+  const handle = inspector.getByRole('separator', { name: 'Resize description' });
+  const grip = (await handle.boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2 + 90, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await description.boundingBox())!.height).toBeGreaterThan(before + 60);
+  await handle.dblclick();
+  await expect.poll(async () => (await description.boundingBox())!.height).toBe(before);
+  await description.fill('Rows outside the viewport are never mounted.');
   await inspector.getByRole('button', { name: 'Save message' }).click();
 
   await expect(inspector.getByRole('heading', { name: 'feat(graph): virtualize commit rows, faster' })).toBeVisible();

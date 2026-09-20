@@ -1457,7 +1457,16 @@ features/
 │                               in a span so the tooltip fires on a disabled button) rather
 │                               than hidden; the editor replaces the h2/body with the commit
 │                               box's two-field group (summary input → Enter focuses the
-│                               description, Backspace on an empty description returns,
+│                               description, Backspace on an empty description returns; the
+│                               description opens with rows = its line count clamped 3–12 and the
+│                               editor box ends in a DRAG HANDLE (role separator "Resize
+│                               description", the commit box's handle markup: h-3 strip, w-10
+│                               pill that is border at rest, primary/60 on hover, primary while
+│                               dragging, double-click resets) that sets an explicit textarea
+│                               height clamped DESCRIPTION_MIN 72 – DESCRIPTION_MAX 360 — the
+│                               native textarea corner grip was shipped first and REJECTED by the
+│                               owner as "web based input"; owner 2026-09-20: long messages need
+│                               room, but never an unbounded drag —,
 │                               ⌘/Ctrl⏎ saves, Esc cancels; both stopPropagation so the
 │                               window shortcuts stay quiet), footer "⌘⏎ to save · Esc to
 │                               cancel" + Cancel + "Save message" (disabled while the summary
