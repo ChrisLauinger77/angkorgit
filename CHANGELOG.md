@@ -6,6 +6,16 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-09-20
+
+The quiet release. macOS stops asking for folder access every time you come back to
+the window, a commit message you have not pushed yet can be fixed in place, and the
+interface, the diffs and the terminal can use the fonts you already have. GitHub
+Copilot CLI joins the installed AI providers, the GitHub account form finally
+mentions fine-grained tokens, and "Show in file manager" on Windows opens the right
+folder again. Christian Lauinger shaped this version with the Copilot provider and
+the Windows report.
+
 ### Added
 - **Choose your fonts.** Settings → Appearance has a Fonts card with three pickers over
   the fonts installed on your computer, each name shown in its own face: Interface for the
@@ -1352,7 +1362,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/cheat2001/angkorgit/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cheat2001/angkorgit/compare/v0.12.0...v0.13.0
