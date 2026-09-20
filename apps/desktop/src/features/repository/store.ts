@@ -23,6 +23,7 @@ interface RepoState {
   submodules: SubmoduleInfo[];
   worktrees: WorktreeInfo[];
   conflicts: string[];
+  unpushed: string[];
   recents: RecentRepository[];
   busy: string | null;
   opening: string | null;
@@ -55,6 +56,7 @@ export const useRepo = create<RepoState>((set, get) => ({
   submodules: [],
   worktrees: [],
   conflicts: [],
+  unpushed: [],
   recents: [],
   busy: null,
   opening: null,
@@ -94,6 +96,7 @@ export const useRepo = create<RepoState>((set, get) => ({
         submodules: [],
         worktrees: [],
         conflicts: [],
+        unpushed: [],
       });
     } else {
       set({ repo, profileId: null, lastFetchAt: null, opening: null, refreshing: true });
@@ -128,6 +131,7 @@ export const useRepo = create<RepoState>((set, get) => ({
       submodules: [],
       worktrees: [],
       conflicts: [],
+      unpushed: [],
       opening: null,
       refreshing: false,
       profileId: null,
@@ -140,7 +144,7 @@ export const useRepo = create<RepoState>((set, get) => ({
     const path = repo.path;
     const seq = ++fullSeq;
     const statusEpoch = ++statusSeq;
-    const [info, status, branches, tags, stashes, remotes, submodules, conflicts, worktrees] =
+    const [info, status, branches, tags, stashes, remotes, submodules, conflicts, worktrees, unpushed] =
       await Promise.all([
         ipc.repoInfo(path),
         ipc.status(path),
@@ -151,6 +155,7 @@ export const useRepo = create<RepoState>((set, get) => ({
         ipc.submodules(path),
         ipc.conflicts(path),
         ipc.worktrees(path).catch(() => [] as WorktreeInfo[]),
+        ipc.unpushedCommits(path).catch(() => [] as string[]),
       ]);
     if (get().repo?.path !== path || seq !== fullSeq) return;
     if (statusEpoch === statusSeq) {
@@ -164,10 +169,11 @@ export const useRepo = create<RepoState>((set, get) => ({
         submodules,
         worktrees,
         conflicts,
+        unpushed,
         statusVersion: state.statusVersion + 1,
       }));
     } else {
-      set({ repo: info, branches, tags, stashes, remotes, submodules, worktrees });
+      set({ repo: info, branches, tags, stashes, remotes, submodules, worktrees, unpushed });
     }
   },
 

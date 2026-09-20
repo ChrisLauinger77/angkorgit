@@ -1582,3 +1582,37 @@ test('a diff selection keeps its lines after scrolling away and back', async ({ 
     await expect.poll(selectionText).toBe(before);
   }
 });
+
+test('an unpushed commit message can be edited in place while a pushed one cannot', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const inspector = page.getByRole('complementary', { name: 'Inspector' });
+
+  await page.getByText('refactor(core): extract lane allocator').first().click();
+  await expect(inspector.getByRole('heading', { name: 'refactor(core): extract lane allocator' })).toBeVisible();
+  await expect(inspector.getByRole('button', { name: 'Edit commit message' })).toBeDisabled();
+
+  await page.getByText('feat(graph): virtualize commit rows').first().click();
+  const heading = inspector.getByRole('heading', { name: 'feat(graph): virtualize commit rows' });
+  await expect(heading).toBeVisible();
+  await expect(inspector.getByRole('button', { name: 'Edit commit message' })).toBeEnabled();
+
+  await heading.dblclick();
+  const summary = inspector.getByLabel('Commit summary');
+  await expect(summary).toBeFocused();
+  await expect(summary).toHaveValue('feat(graph): virtualize commit rows');
+  await expect(inspector.getByRole('button', { name: 'Save message' })).toBeDisabled();
+  await summary.press('Escape');
+  await expect(inspector.getByLabel('Commit summary')).toHaveCount(0);
+  await expect(heading).toBeVisible();
+
+  await inspector.getByRole('button', { name: 'Edit commit message' }).click();
+  await inspector.getByLabel('Commit summary').fill('feat(graph): virtualize commit rows, faster');
+  await inspector.getByLabel('Commit description').fill('Rows outside the viewport are never mounted.');
+  await inspector.getByRole('button', { name: 'Save message' }).click();
+
+  await expect(inspector.getByRole('heading', { name: 'feat(graph): virtualize commit rows, faster' })).toBeVisible();
+  await expect(inspector.getByText('Rows outside the viewport are never mounted.')).toBeVisible();
+  await expect(page.getByText('feat(graph): virtualize commit rows, faster')).toHaveCount(2);
+});

@@ -2557,3 +2557,123 @@ fn blame_attributes_lines_to_their_commits_and_uncommitted_edits() {
     let before = core::blame_file(repo.path(), "a.txt", Some(&format!("{second}^"))).unwrap();
     assert_eq!(before.rev.as_deref(), Some(first.as_str()));
 }
+
+fn history_oid_of(repo: &TempRepo, summary: &str) -> String {
+    core::history(
+        repo.path(),
+        core::HistoryQuery {
+            skip: 0,
+            limit: 20,
+            search: None,
+            author: None,
+            branch: None,
+        },
+    )
+    .unwrap()
+    .commits
+    .into_iter()
+    .find(|c| c.summary == summary)
+    .map(|c| c.oid)
+    .expect("commit with that summary")
+}
+
+fn header_line<'a>(header: &'a str, key: &str) -> &'a str {
+    header
+        .lines()
+        .find(|line| line.starts_with(key))
+        .expect("header line")
+}
+
+#[test]
+fn reword_head_changes_only_the_message_even_with_a_dirty_tree() {
+    let repo = TempRepo::new();
+    repo.write("a.txt", "one\n");
+    commit_all(&repo, "feat: first");
+    repo.write("a.txt", "two\n");
+    let before = commit_all(&repo, "feat: typo in mesage");
+    repo.write("a.txt", "three\n");
+    repo.write("b.txt", "staged\n");
+    core::stage_file(repo.path(), "b.txt").unwrap();
+    let old_header = commit_header(&repo, &before);
+
+    let after = core::reword(
+        repo.path(),
+        &before,
+        "feat: typo in message\n\nExplains why.",
+    )
+    .unwrap();
+
+    assert_ne!(after, before);
+    assert_eq!(
+        history_summaries(&repo),
+        vec!["feat: typo in message", "feat: first"]
+    );
+    let new_header = commit_header(&repo, "HEAD");
+    assert!(new_header.contains("Explains why."));
+    assert_eq!(
+        header_line(&new_header, "tree "),
+        header_line(&old_header, "tree ")
+    );
+    assert_eq!(
+        header_line(&new_header, "author "),
+        header_line(&old_header, "author ")
+    );
+    assert_eq!(repo.read("a.txt"), "three\n");
+    assert_eq!(core::status(repo.path()).unwrap().files.len(), 2);
+}
+
+#[test]
+fn reword_an_earlier_commit_rewrites_the_commits_above_it() {
+    let repo = TempRepo::new();
+    repo.write("base.txt", "base\n");
+    commit_all(&repo, "base");
+    repo.write("f1.txt", "1\n");
+    commit_all(&repo, "one");
+    repo.write("f2.txt", "2\n");
+    let two = commit_all(&repo, "two");
+    repo.write("f3.txt", "3\n");
+    commit_all(&repo, "three");
+
+    let reworded = core::reword(repo.path(), &two, "two, reworded").unwrap();
+
+    assert_eq!(
+        history_summaries(&repo),
+        vec!["three", "two, reworded", "one", "base"]
+    );
+    assert_eq!(reworded, history_oid_of(&repo, "two, reworded"));
+    assert_ne!(reworded, two);
+    assert_eq!(repo.read("f2.txt"), "2\n");
+    assert_eq!(repo.read("f3.txt"), "3\n");
+
+    repo.write("f3.txt", "dirty\n");
+    let one = history_oid_of(&repo, "one");
+    let err = core::reword(repo.path(), &one, "one, again").unwrap_err();
+    assert!(err.to_string().contains("uncommitted changes"));
+    assert_eq!(history_oid_of(&repo, "one"), one);
+}
+
+#[test]
+fn unpushed_lists_only_commits_missing_from_every_remote_ref() {
+    let repo = TempRepo::new();
+    repo.write("a.txt", "1\n");
+    let one = commit_all(&repo, "one");
+    repo.write("a.txt", "2\n");
+    let two = commit_all(&repo, "two");
+    assert_eq!(
+        core::unpushed(repo.path()).unwrap(),
+        vec![two.clone(), one.clone()]
+    );
+
+    let track = |oid: &str| {
+        let status = Command::new("git")
+            .args(["update-ref", "refs/remotes/origin/master", oid])
+            .current_dir(&repo.dir)
+            .status()
+            .expect("git CLI available");
+        assert!(status.success());
+    };
+    track(&one);
+    assert_eq!(core::unpushed(repo.path()).unwrap(), vec![two.clone()]);
+    track(&two);
+    assert!(core::unpushed(repo.path()).unwrap().is_empty());
+}

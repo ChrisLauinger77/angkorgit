@@ -254,6 +254,17 @@ export const ipc = {
     if (!isTauri()) return 'demo-amend-oid';
     return invoke('commit_amend', { path, message });
   },
+  async reword(path: string, oid: string, message: string): Promise<string> {
+    if (!isTauri()) {
+      await delay(120);
+      return demo.demoReword(oid, message);
+    }
+    return invoke('commit_reword', { path, oid, message });
+  },
+  async unpushedCommits(path: string): Promise<string[]> {
+    if (!isTauri()) return demo.demoUnpushed();
+    return invoke('history_unpushed', { path });
+  },
   async revert(path: string, oid: string): Promise<OpOutcome> {
     if (!isTauri()) return { status: 'ok', message: 'Reverted (demo)' };
     return invoke('commit_revert', { path, oid });

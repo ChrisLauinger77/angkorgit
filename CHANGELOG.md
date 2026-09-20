@@ -7,6 +7,14 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Edit a commit message in place.** Select a commit you have not pushed yet and
+  double-click its message in the inspector, or use the pencil button or the graph's
+  right-click menu. The summary and description open as the same two fields as the
+  commit box, ⌘⏎ saves and Esc cancels. The latest commit is amended without touching
+  your staged or unstaged changes; an older commit is rewritten together with the
+  commits above it, which needs a clean working tree. Commits already on a remote keep
+  the button disabled, and the change is undoable. Suggested by users who kept fixing
+  typos with a manual amend.
 - **GitHub Copilot CLI as an installed AI provider.** AngKorGit detects the
   `copilot` binary, including WinGet installs on Windows, and runs prompts through
   the user's existing Copilot login and quota with optional model overrides.

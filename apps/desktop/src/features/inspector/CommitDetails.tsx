@@ -20,7 +20,7 @@ import {
   UserRoundSearch,
 } from 'lucide-react';
 import type { CommitFileInfo, CommitInfo, FileDiff } from '@angkorgit/core';
-import { aiCapabilities, filterFiles } from '@angkorgit/core';
+import { aiCapabilities, filterFiles, joinCommitMessage, splitCommitMessage } from '@angkorgit/core';
 import {
   Badge,
   Button,
@@ -33,12 +33,14 @@ import {
   DropdownMenuTrigger,
   Hint,
   Logo,
+  Textarea,
   cn,
 } from '@angkorgit/design-system';
 import { ipc } from '@/core/ipc';
 import { FileFilterInput } from '@/components/FileFilterInput';
 import { useGraph } from '@/features/graph/store';
 import { useRepo } from '@/features/repository/store';
+import { useUndo } from '@/features/history/undoStore';
 import { focusRequests, useUi } from '@/features/ui/store';
 import { useSettings } from '@/features/settings/store';
 import { openInEditor, preferredEditor, useEditors } from '@/features/settings/editors';
@@ -223,6 +225,73 @@ export function CommitDetails({
     });
   };
   const longBody = commit.body.split('\n').length > 8 || commit.body.length > 600;
+  const unpushed = useRepo((s) => s.unpushed);
+  const refresh = useRepo((s) => s.refresh);
+  const reloadGraph = useGraph((s) => s.reload);
+  const canReword = !stash && unpushed.includes(commit.oid);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const draftSummaryRef = useRef<HTMLInputElement>(null);
+  const draftBodyRef = useRef<HTMLTextAreaElement>(null);
+  const originalMessage = joinCommitMessage(commit.summary, commit.body);
+  const startEditing = useCallback(() => {
+    if (!canReword) return;
+    setDraft(joinCommitMessage(commit.summary, commit.body));
+    setEditing(true);
+  }, [canReword, commit.summary, commit.body]);
+  useEffect(() => {
+    setEditing(false);
+    setSaving(false);
+  }, [commit.oid]);
+  useEffect(() => {
+    if (editing) draftSummaryRef.current?.focus();
+  }, [editing]);
+  const editMessageRequest = useUi((s) => s.editMessageRequest);
+  useEffect(() => {
+    if (!editMessageRequest || editMessageRequest.seq === focusRequests.editMessageConsumed) return;
+    if (editMessageRequest.oid !== commit.oid) return;
+    focusRequests.editMessageConsumed = editMessageRequest.seq;
+    startEditing();
+  }, [editMessageRequest, commit.oid, startEditing]);
+  const draftParts = splitCommitMessage(draft);
+  const canSave = draftParts.summary.trim().length > 0 && draft.trim() !== originalMessage.trim() && !saving;
+  const cancelEditing = () => {
+    setEditing(false);
+    setDraft('');
+  };
+  const saveMessage = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      const newOid = await useUndo.getState().tracked({
+        path: repoPath,
+        kind: 'reword',
+        label: 'edit commit message',
+        action: () => ipc.reword(repoPath, commit.oid, draft),
+      });
+      setEditing(false);
+      toast.success('Commit message updated');
+      await refresh();
+      await reloadGraph(repoPath);
+      select(newOid);
+    } catch (error) {
+      toast.error(`Could not update the message: ${(error as { message?: string }).message ?? error}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+  const onEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      cancelEditing();
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      e.stopPropagation();
+      void saveMessage();
+    }
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
   const filesRef = useRef<HTMLDivElement>(null);
   const activeIndex = shownDiffs.findIndex(
@@ -407,16 +476,78 @@ export function CommitDetails({
   return (
     <div ref={scrollRef} className="flex h-full flex-col overflow-y-auto">
       <div className="border-b border-border-subtle px-4 pb-4 pt-3">
-        <h2 className="text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
-          {commit.summary}
-        </h2>
-        {commit.body && (
+        {editing ? (
+          <div
+            data-message-editor
+            className={cn(
+              'rounded-md border border-border bg-surface shadow-sm transition-colors',
+              'focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/60',
+            )}
+            onKeyDown={onEditorKeyDown}
+          >
+            <input
+              ref={draftSummaryRef}
+              value={draftParts.summary}
+              onChange={(e) => setDraft(joinCommitMessage(e.target.value, draftParts.body))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+                  e.preventDefault();
+                  draftBodyRef.current?.focus();
+                }
+              }}
+              placeholder="Summary"
+              aria-label="Commit summary"
+              spellCheck
+              className="h-9 w-full min-w-0 bg-transparent px-3 text-sm font-medium text-foreground outline-none placeholder:font-normal placeholder:text-faint"
+            />
+            <div className="mx-3 h-px bg-border-subtle" />
+            <Textarea
+              ref={draftBodyRef}
+              value={draftParts.body}
+              onChange={(e) => setDraft(joinCommitMessage(draftParts.summary, e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === 'Backspace' && draftParts.body.length === 0) {
+                  e.preventDefault();
+                  draftSummaryRef.current?.focus();
+                }
+              }}
+              placeholder="Description"
+              aria-label="Commit description"
+              className="max-h-[260px] min-h-[72px] resize-none rounded-none border-0 bg-transparent px-3 py-2 text-xs leading-relaxed text-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"
+            />
+            <div className="flex items-center justify-between gap-2 border-t border-border-subtle px-2 py-1.5">
+              <span className="text-[11px] text-faint">{isMac ? '⌘⏎' : 'Ctrl+⏎'} to save · Esc to cancel</span>
+              <span className="flex items-center gap-1.5">
+                <Button variant="ghost" size="sm" onClick={cancelEditing} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={() => void saveMessage()} disabled={!canSave}>
+                  {saving ? 'Saving…' : 'Save message'}
+                </Button>
+              </span>
+            </div>
+          </div>
+        ) : (
+          <h2
+            className={cn(
+              'text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere]',
+              canReword && 'cursor-text',
+            )}
+            title={canReword ? 'Double-click to edit the message' : undefined}
+            onDoubleClick={startEditing}
+          >
+            {commit.summary}
+          </h2>
+        )}
+        {commit.body && !editing && (
           <div className="mt-2">
             <pre
               className={cn(
                 'whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-muted',
                 longBody && !bodyExpanded && 'line-clamp-[8]',
+                canReword && 'cursor-text',
               )}
+              onDoubleClick={startEditing}
             >
               {commit.body}
             </pre>
@@ -490,7 +621,25 @@ export function CommitDetails({
           )}
         </div>
 
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {stash ? (
+            <span />
+          ) : (
+            <Hint label={canReword ? 'Edit the commit message' : 'Already pushed to a remote'}>
+              <span className="inline-flex">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted"
+                  aria-label="Edit commit message"
+                  disabled={!canReword || editing}
+                  onClick={startEditing}
+                >
+                  <Pencil /> Edit message
+                </Button>
+              </span>
+            </Hint>
+          )}
           <Button variant="ghost" size="sm" className="text-muted" onClick={() => void explain()} disabled={loading}>
             {aiBusy ? (
               <>

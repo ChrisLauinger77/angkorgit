@@ -282,6 +282,16 @@ pub async fn commit_amend(path: String, message: Option<String>) -> AppResult<St
 }
 
 #[tauri::command]
+pub async fn commit_reword(path: String, oid: String, message: String) -> AppResult<String> {
+    blocking(move || commit::reword(&path, &oid, &message)).await
+}
+
+#[tauri::command]
+pub async fn history_unpushed(path: String) -> AppResult<Vec<String>> {
+    blocking(move || history::unpushed(&path)).await
+}
+
+#[tauri::command]
 pub async fn merge_message(path: String) -> AppResult<Option<String>> {
     blocking(move || commit::merge_message(&path)).await
 }

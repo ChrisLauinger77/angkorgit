@@ -109,6 +109,20 @@ export const demoRecents: RecentRepository[] = [
   { path: '/Users/demo/work/api-gateway', name: 'api-gateway', lastOpenedAt: 1753900000 },
 ];
 
+export function demoUnpushed(): string[] {
+  const remote = ALL_COMMITS.findIndex((c) => c.refs.some((ref) => ref.kind === 'remoteBranch'));
+  return ALL_COMMITS.slice(0, remote === -1 ? 0 : remote).map((c) => c.oid);
+}
+
+export function demoReword(oid: string, message: string): string {
+  const commit = ALL_COMMITS.find((c) => c.oid === oid);
+  if (!commit) throw new Error('commit not found');
+  const newline = message.indexOf('\n');
+  commit.summary = newline === -1 ? message : message.slice(0, newline);
+  commit.body = newline === -1 ? '' : message.slice(newline + 1).replace(/^\n/, '');
+  return oid;
+}
+
 export function demoHistory(query: HistoryQuery): HistoryPage {
   let commits = ALL_COMMITS;
   if (query.search) {

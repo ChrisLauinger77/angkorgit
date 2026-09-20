@@ -107,6 +107,7 @@ interface UiState {
   fileFilterFocusSeq: number;
   inspectorFocusSeq: number;
   graphFocusSeq: number;
+  editMessageRequest: { seq: number; oid: string } | null;
   sidebarSections: Record<string, boolean>;
   sidebarCollapseEpoch: number;
   commitBoxHeight: number | null;
@@ -145,12 +146,13 @@ interface UiState {
   setFileTree: (on: boolean) => void;
   setFileFilterOpen: (on: boolean) => void;
   focusInspector: () => void;
+  requestEditMessage: (oid: string) => void;
   focusGraph: () => void;
 }
 
 export const sidebarVisible = (s: UiState) => s.sidebarOpen && !s.sidebarHiddenForDiff;
 
-export const focusRequests = { inspectorConsumed: 0 };
+export const focusRequests = { inspectorConsumed: 0, editMessageConsumed: 0 };
 
 let dialogReturnFocus: HTMLElement | null = null;
 
@@ -193,6 +195,7 @@ export const useUi = create<UiState>()(
   fileFilterFocusSeq: 0,
   inspectorFocusSeq: 0,
   graphFocusSeq: 0,
+  editMessageRequest: null,
   sidebarSections: {},
   sidebarCollapseEpoch: 0,
   commitBoxHeight: null,
@@ -276,6 +279,8 @@ export const useUi = create<UiState>()(
   setFileTree: (fileTree) => set({ fileTree }),
   focusInspector: () => set((s) => ({ inspectorFocusSeq: s.inspectorFocusSeq + 1 })),
   focusGraph: () => set((s) => ({ graphFocusSeq: s.graphFocusSeq + 1 })),
+  requestEditMessage: (oid) =>
+    set((s) => ({ editMessageRequest: { seq: (s.editMessageRequest?.seq ?? 0) + 1, oid } })),
   setFileFilterOpen: (fileFilterOpen) =>
     set((s) => ({ fileFilterOpen, fileFilterFocusSeq: fileFilterOpen ? s.fileFilterFocusSeq + 1 : s.fileFilterFocusSeq })),
     }),
