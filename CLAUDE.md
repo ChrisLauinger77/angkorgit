@@ -14,9 +14,10 @@ deliberately minimal: *"if GitKraken has 100 features, ship the best 25 executed
 exceptionally well."* The name honors **Angkor Wat** — strength, simplicity, and
 craftsmanship from Cambodia 🇰🇭.
 
-- **Bundle size: 14 MB universal .dmg / 28 MB installed** (0.13.0, measured from the
-  release artifacts; 0.12.0 was 12 / 25 before the single-instance plugin and blame) — a
-  single-arch build is 13 MB installed. (vs ~1 GB for Electron-based clients.) Re-measure
+- **Bundle size: 14 MB universal .dmg / 27 MB installed** (0.16.0, measured from the
+  release artifacts, now ad-hoc signed on both slices; 0.13.0 was 14 / 28, 0.12.0 was
+  12 / 25 before the single-instance plugin and blame) — a single-arch build is 13 MB
+  installed. (vs ~1 GB for Electron-based clients.) Re-measure
   before quoting it: `du -sh target/universal-apple-darwin/release/bundle/macos/AngKorGit.app`
 - Angkor Dusk theme by default for new installs (16 themes total, dark + light), Temple Gold `#D97706` brand accent
 - Keyboard-first (⌘K palette), beginner-friendly (visual conflict resolver, confirm
