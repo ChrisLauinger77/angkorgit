@@ -287,6 +287,11 @@ pub async fn commit_reword(path: String, oid: String, message: String) -> AppRes
 }
 
 #[tauri::command]
+pub async fn fonts_list() -> AppResult<Vec<crate::fonts::FontFamily>> {
+    blocking(|| Ok(crate::fonts::list())).await
+}
+
+#[tauri::command]
 pub async fn history_unpushed(path: String) -> AppResult<Vec<String>> {
     blocking(move || history::unpushed(&path)).await
 }

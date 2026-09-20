@@ -7,6 +7,13 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Choose your fonts.** Settings → Appearance has a Fonts card with three pickers over
+  the fonts installed on your computer, each name shown in its own face: Interface for the
+  whole app, Code for diffs, hashes and commit details, and Terminal, which follows Code
+  unless you give it its own font and size. The preview line shows the terminal result,
+  everything switches right away, the choice is remembered, and Reset fonts brings the
+  defaults back. A font removed since you picked it says so instead of failing quietly,
+  and the card links to Nerd Fonts for glyphs. (#28)
 - **Fine-grained GitHub tokens, explained.** The GitHub account form keeps its classic
   token link and now adds the fine-grained token page next to it, with the two permissions
   it needs spelled out (Contents and Pull requests, read and write). Both kinds have

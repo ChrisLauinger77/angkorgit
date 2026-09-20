@@ -109,6 +109,16 @@ export const demoRecents: RecentRepository[] = [
   { path: '/Users/demo/work/api-gateway', name: 'api-gateway', lastOpenedAt: 1753900000 },
 ];
 
+export const demoFonts = [
+  { family: 'Fira Code', monospaced: true },
+  { family: 'Helvetica Neue', monospaced: false },
+  { family: 'Inter', monospaced: false },
+  { family: 'JetBrains Mono', monospaced: true },
+  { family: 'Menlo', monospaced: true },
+  { family: 'Monaco', monospaced: true },
+  { family: 'SF Mono', monospaced: true },
+];
+
 export function demoUnpushed(): string[] {
   const remote = ALL_COMMITS.findIndex((c) => c.refs.some((ref) => ref.kind === 'remoteBranch'));
   return ALL_COMMITS.slice(0, remote === -1 ? 0 : remote).map((c) => c.oid);

@@ -70,6 +70,7 @@ import { installCliTool } from './cliTool';
 import { useEditors } from './editors';
 import { AccountsTab, providerIcon } from './AccountsTab';
 import { Field, SettingCard, SettingEmpty, SettingRow } from './SettingCard';
+import { FontsCard } from './FontsCard';
 import { getAiProvider } from '@/features/ai/client';
 import { modKey, shortenHome } from '@/shared/utils';
 
@@ -1045,6 +1046,8 @@ export function SettingsDialog() {
                     description="Minimize animations across the app"
                     action={<Switch checked={settings.reduceMotion} onCheckedChange={settings.setReduceMotion} />}
                   />
+
+                  <FontsCard />
                 </div>
               )}
 

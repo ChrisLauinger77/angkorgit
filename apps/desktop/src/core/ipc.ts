@@ -66,6 +66,11 @@ export interface EditorInfo {
   launch: 'binary' | 'app';
 }
 
+export interface FontFamily {
+  family: string;
+  monospaced: boolean;
+}
+
 export type CliRequest =
   | { kind: 'open'; path: string }
   | { kind: 'clone'; url: string; into: string; branch?: string };
@@ -765,6 +770,13 @@ export const ipc = {
       return;
     }
     return invoke('cli_uninstall');
+  },
+  async fontsList(): Promise<FontFamily[]> {
+    if (!isTauri()) {
+      await delay(80);
+      return demo.demoFonts;
+    }
+    return invoke('fonts_list');
   },
   async editorsDetect(): Promise<EditorInfo[]> {
     if (!isTauri()) {

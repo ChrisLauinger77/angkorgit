@@ -1635,3 +1635,56 @@ test('the GitHub account form offers fine-grained and classic token pages', asyn
   await dialog.getByText('Token', { exact: true }).click();
   await expect(dialog.getByPlaceholder('Paste the token')).toBeFocused();
 });
+
+test('the fonts card changes the interface, code and terminal fonts and remembers them', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Toggle terminal' }).click();
+  const rows = page.locator('.terminal-host .xterm-rows');
+  await expect(rows).toBeVisible();
+  await expect.poll(() => rows.evaluate((el) => getComputedStyle(el).fontSize)).toBe('12px');
+  const rootVar = (name: string) =>
+    page.evaluate((v) => getComputedStyle(document.documentElement).getPropertyValue(v), name);
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Reset fonts' })).toHaveCount(0);
+
+  await dialog.getByRole('combobox', { name: 'Interface font' }).click();
+  await expect(page.getByText('Fonts', { exact: true }).last()).toBeVisible();
+  await page.getByRole('option', { name: 'Helvetica Neue' }).click();
+  await expect.poll(() => rootVar('--font-sans')).toContain('Helvetica Neue');
+
+  await dialog.getByRole('combobox', { name: 'Code font' }).click();
+  await expect(page.getByText('Other fonts', { exact: true })).toBeVisible();
+  await page.getByRole('option', { name: 'Fira Code' }).click();
+  await expect.poll(() => rootVar('--font-mono')).toContain('Fira Code');
+  await expect.poll(() => rows.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Fira Code');
+  await expect(dialog.getByRole('combobox', { name: 'Terminal font', exact: true })).toContainText('Fira Code');
+
+  await dialog.getByRole('combobox', { name: 'Terminal font', exact: true }).click();
+  await page.getByRole('option', { name: 'Menlo' }).click();
+  const preview = dialog.locator('[data-terminal-font-preview]');
+  await expect.poll(() => preview.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Menlo');
+  await dialog.getByRole('combobox', { name: 'Terminal font size' }).click();
+  await page.getByRole('option', { name: '16 px' }).click();
+  await expect.poll(() => rows.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Menlo');
+  await expect.poll(() => rows.evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+
+  await page.reload();
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await expect.poll(() => rootVar('--font-sans')).toContain('Helvetica Neue');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const reopened = page.getByRole('dialog');
+  await reopened.getByRole('button', { name: 'Appearance', exact: true }).click();
+  await expect(reopened.getByRole('combobox', { name: 'Terminal font', exact: true })).toContainText('Menlo');
+  await reopened.getByRole('button', { name: 'Reset fonts' }).click();
+  await expect.poll(() => rootVar('--font-sans')).not.toContain('Helvetica Neue');
+  await expect(reopened.getByRole('combobox', { name: 'Interface font' })).toContainText('Inter');
+  await expect(reopened.getByRole('button', { name: 'Reset fonts' })).toHaveCount(0);
+});

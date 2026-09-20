@@ -7,6 +7,7 @@ mod commands;
 mod core;
 mod editors;
 mod error;
+mod fonts;
 mod forge;
 mod http;
 mod proc;
@@ -142,6 +143,7 @@ pub fn run() {
             commands::commit_amend,
             commands::commit_reword,
             commands::history_unpushed,
+            commands::fonts_list,
             commands::merge_message,
             commands::merge_can_ff,
             commands::commit_revert,
