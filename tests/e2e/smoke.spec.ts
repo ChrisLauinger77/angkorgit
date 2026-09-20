@@ -1616,3 +1616,22 @@ test('an unpushed commit message can be edited in place while a pushed one canno
   await expect(inspector.getByText('Rows outside the viewport are never mounted.')).toBeVisible();
   await expect(page.getByText('feat(graph): virtualize commit rows, faster')).toHaveCount(2);
 });
+
+test('the GitHub account form offers fine-grained and classic token pages', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Authentication', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add account' }).click();
+  await expect(dialog.getByPlaceholder('Paste the token')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Create one on GitHub' })).toHaveAttribute('href', /settings\/tokens\/new/);
+  await expect(dialog.getByRole('link', { name: 'fine-grained token' })).toHaveAttribute(
+    'href',
+    'https://github.com/settings/personal-access-tokens/new',
+  );
+  await expect(dialog.getByText(/Contents and Pull requests set to read and write/)).toBeVisible();
+  await dialog.getByText('Token', { exact: true }).click();
+  await expect(dialog.getByPlaceholder('Paste the token')).toBeFocused();
+});

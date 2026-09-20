@@ -42,25 +42,42 @@ interface ProviderPreset {
   label: string;
   defaultHost: string;
   hostEditable: boolean;
-  tokenUrl: (host: string) => string | null;
-  tokenHint: string;
+  tokenPage: (host: string) => string | null;
+  tokenHint: React.ReactNode;
   usernameHint: string;
 }
+
+const FINE_GRAINED_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
 
 const PROVIDERS: Record<ProviderKind, ProviderPreset> = {
   github: {
     label: 'GitHub',
     defaultHost: 'github.com',
     hostEditable: false,
-    tokenUrl: () => 'https://github.com/settings/tokens/new?scopes=repo&description=AngKorGit',
-    tokenHint: 'Personal access token with the "repo" scope',
+    tokenPage: () => 'https://github.com/settings/tokens/new?scopes=repo&description=AngKorGit',
+    tokenHint: (
+      <>
+        Classic token with the repo scope, or a{' '}
+        <a
+          href={FINE_GRAINED_TOKEN_URL}
+          className="text-primary hover:underline"
+          onClick={(e) => {
+            e.preventDefault();
+            void openExternal(FINE_GRAINED_TOKEN_URL);
+          }}
+        >
+          fine-grained token
+        </a>{' '}
+        with Contents and Pull requests set to read and write.
+      </>
+    ),
     usernameHint: 'username (detected from the token)',
   },
   gitlab: {
     label: 'GitLab.com',
     defaultHost: 'gitlab.com',
     hostEditable: false,
-    tokenUrl: () => 'https://gitlab.com/-/user_settings/personal_access_tokens',
+    tokenPage: () => 'https://gitlab.com/-/user_settings/personal_access_tokens',
     tokenHint: 'Personal access token with "read_repository" + "write_repository" scopes',
     usernameHint: 'username (detected from the token)',
   },
@@ -68,7 +85,7 @@ const PROVIDERS: Record<ProviderKind, ProviderPreset> = {
     label: 'GitLab (self-hosted)',
     defaultHost: '',
     hostEditable: true,
-    tokenUrl: (host) => (host ? `http://${host}/-/user_settings/personal_access_tokens` : null),
+    tokenPage: (host) => (host ? `http://${host}/-/user_settings/personal_access_tokens` : null),
     tokenHint: 'Personal access token with "read_repository" + "write_repository" scopes',
     usernameHint: 'username (detected from the token)',
   },
@@ -76,7 +93,7 @@ const PROVIDERS: Record<ProviderKind, ProviderPreset> = {
     label: 'Bitbucket',
     defaultHost: 'bitbucket.org',
     hostEditable: false,
-    tokenUrl: () => 'https://id.atlassian.com/manage-profile/security/api-tokens',
+    tokenPage: () => 'https://id.atlassian.com/manage-profile/security/api-tokens',
     tokenHint: 'API token with read:repository:bitbucket + write:repository:bitbucket scopes',
     usernameHint: 'Atlassian account email (your Bitbucket username is detected)',
   },
@@ -84,7 +101,7 @@ const PROVIDERS: Record<ProviderKind, ProviderPreset> = {
     label: 'Other host',
     defaultHost: '',
     hostEditable: true,
-    tokenUrl: () => null,
+    tokenPage: () => null,
     tokenHint: 'Token or password used for HTTPS git access',
     usernameHint: 'username',
   },
@@ -380,7 +397,7 @@ export function AccountsTab() {
     return acc;
   }, {});
 
-  const tokenPage = preset.tokenUrl(host.trim());
+  const tokenPage = preset.tokenPage(host.trim());
   const showForm = adding || (!loading && accounts.length === 0);
 
   const confirmRemove = async (account: HostingAccount) => {
@@ -533,13 +550,16 @@ export function AccountsTab() {
                 label="Token"
                 hint={
                   tokenPage ? (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-primary hover:underline"
-                      onClick={() => void openExternal(tokenPage)}
+                    <a
+                      href={tokenPage}
+                      className="flex items-center gap-1 whitespace-nowrap text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        void openExternal(tokenPage);
+                      }}
                     >
                       Create one on {preset.label} <ExternalLink className="size-3" />
-                    </button>
+                    </a>
                   ) : undefined
                 }
               >
@@ -557,7 +577,7 @@ export function AccountsTab() {
               </Field>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="min-w-0 truncate text-[11px] text-faint">{preset.tokenHint}</span>
+              <span className="min-w-0 text-[11px] leading-relaxed text-faint">{preset.tokenHint}</span>
               <span className="flex shrink-0 gap-2">
                 {accounts.length > 0 && (
                   <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>

@@ -7,6 +7,11 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Fine-grained GitHub tokens, explained.** The GitHub account form keeps its classic
+  token link and now adds the fine-grained token page next to it, with the two permissions
+  it needs spelled out (Contents and Pull requests, read and write). Both kinds have
+  always worked; the form just never mentioned fine-grained tokens, which left
+  organizations that require them guessing. (#31)
 - **Edit a commit message in place.** Select a commit you have not pushed yet and
   double-click its message in the inspector, or use the pencil button or the graph's
   right-click menu. The summary and description open as the same two fields as the
