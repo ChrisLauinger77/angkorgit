@@ -27,6 +27,8 @@ All notable changes to AngKorGit are documented here. The format follows
   to fall apart once the view scrolled: copy returned one line and the highlight moved
   when you scrolled back. The selection now grows to the last visible line while you hold
   the mouse below the diff, and copy returns every selected line.
+- **Push with tags failed** with `not a valid reference 'refs/tags/*'`. libgit2 does not
+  expand the glob git uses, so the engine now names each local tag in its own refspec. (#34)
 
 ## [0.16.0] — 2026-09-20
 

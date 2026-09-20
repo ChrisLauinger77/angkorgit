@@ -2324,6 +2324,27 @@ fn push_reports_up_to_date_instead_of_pushing_again() {
     let _ = std::fs::remove_dir_all(&origin);
 }
 
+#[test]
+fn push_with_tags_sends_named_tag_refs() {
+    let local = TempRepo::new();
+    local.write("a.txt", "one\n");
+    commit_all(&local, "one");
+    let origin = bare_origin(&local);
+
+    core::tag_create(local.path(), "v1.0.0", None, None).unwrap();
+    let outcome = core::push(local.path(), "origin", None, false, true, true).unwrap();
+    assert_eq!(outcome.status, "ok");
+
+    let listed = Command::new("git")
+        .args(["tag", "-l", "v1.0.0"])
+        .current_dir(&origin)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&listed.stdout).trim(), "v1.0.0");
+
+    let _ = std::fs::remove_dir_all(&origin);
+}
+
 fn clone_of(origin: &std::path::Path, local: &TempRepo, suffix: &str) -> TempRepo {
     let dir = local.dir.with_file_name(format!(
         "{}-{suffix}",
