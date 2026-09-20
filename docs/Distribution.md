@@ -38,13 +38,24 @@ is expected behavior for unsigned builds; a paid Developer ID signature is the
 only way to make authorization permanent.
 
 **macOS folder-access prompts (Desktop/Documents/Downloads)**: consent is
-keyed to the app's code signature. One installed build → one prompt per
-folder, then it persists. Each UPDATE (new ad-hoc signature) may re-ask once.
-An endless prompt loop means stale/conflicting records from replaced binaries
-(typical on a dev machine installing many builds): fix with
+keyed to the app's code signature, so the bundle must carry one. Releases up to
+0.15.0 shipped with only the linker's throwaway signature on the arm64 slice and
+no bundle signature at all (`codesign -d -r- AngKorGit.app` said "not signed at
+all"), so tccd could not validate any stored grant (Security error -67062) and
+asked again on every protected-folder access, discarding each Allow. Since
+0.16.0 `bundle.macOS.signingIdentity` is `"-"`: the bundler ad-hoc signs the
+frameworks and the whole .app (both slices, Info.plist bound, resources
+sealed). The stored requirement is the build's cdhash, so one installed build
+means one prompt per folder, and each update re-asks once. No grant can match
+while the binary on disk differs from the running process (a dmg dragged over a
+running app, or `pnpm install:mac` while the old instance is open, which is why
+that script quits the app first), so relaunch after installing. Stale records:
 `tccutil reset All dev.angkorgit.app`, then relaunch and Allow once. Users
 must drag the app out of the dmg into /Applications — running it from inside
-the dmg triggers app translocation, where grants can never persist.
+the dmg triggers app translocation, where grants can never persist. Possible
+follow-up, untested: signing with a custom designated requirement
+(`identifier "dev.angkorgit.app"`) would let the grant survive updates, but it
+needs a re-sign step after the bundler runs and a live tccd test first.
 
 Security honesty: unsigned ≠ unsafe. Releases are built by public GitHub
 Actions from public source, updates are minisign-verified (§3), and users can

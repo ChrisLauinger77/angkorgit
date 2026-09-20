@@ -12,6 +12,12 @@ All notable changes to AngKorGit are documented here. The format follows
   the user's existing Copilot login and quota with optional model overrides.
 
 ### Fixed
+- **macOS stops asking for Desktop, Documents and Downloads access again and
+  again.** The app bundle shipped without a code signature, so macOS could not hold
+  on to the permission you granted and asked again the next time the app touched a
+  repository in one of those folders, often several times in a row and every time
+  you came back to the window. The bundle is now signed as a whole. macOS asks once
+  per installed version and remembers the answer.
 - **"Show in file manager" on Windows opens the file's folder again.** Explorer was
   handed a path with forward slashes, quoted as a whole together with its `/select`
   switch, and fell back to a default folder. Reported by Christian Lauinger. (#26)
