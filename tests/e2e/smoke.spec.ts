@@ -1699,3 +1699,157 @@ test('the fonts card changes the interface, code and terminal fonts and remember
   await expect(reopened.getByRole('combobox', { name: 'Interface font' })).toContainText('Inter');
   await expect(reopened.getByRole('button', { name: 'Reset fonts' })).toHaveCount(0);
 });
+
+test('sidebar section headers carry a gold icon tile and a count badge, with no dividers or fills', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const sections = page.locator('[data-sidebar-section]');
+  await expect(sections).toHaveCount(7);
+  const borders = await sections.evaluateAll((els) => els.map((el) => getComputedStyle(el).borderTopWidth));
+  expect(borders).toEqual(borders.map(() => '0px'));
+  const transparent = (fill: string) => fill === 'rgba(0, 0, 0, 0)' || fill === 'transparent';
+  const fills = await page
+    .locator('[data-sidebar-section-header], [data-sidebar-section-body]')
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(fills.length).toBeGreaterThan(7);
+  expect(fills.every(transparent)).toBe(true);
+  const tiles = page.locator('[data-sidebar-section-icon]');
+  await expect(tiles).toHaveCount(7);
+  const tileFills = await tiles.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+  expect(tileFills.some(transparent)).toBe(false);
+  const branches = page.locator('[data-sidebar-section-header]').first();
+  await expect(branches.getByText('6', { exact: true })).toBeVisible();
+  const badgeFill = await branches.getByText('6', { exact: true }).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(transparent(badgeFill)).toBe(false);
+});
+
+test('the commit file list filters by kind of change from the summary tokens', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('feat(graph): virtualize commit rows').first().click();
+  const inspector = page.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector.getByText('graphLayout.test.ts')).toBeVisible();
+  const all = inspector.getByRole('button', { name: 'All', exact: true });
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  await inspector.getByRole('button', { name: '1 added' }).click();
+  await expect(inspector.getByText('graphLayout.test.ts')).toBeVisible();
+  await expect(inspector.getByText('Architecture.md')).toBeHidden();
+  await expect(inspector.getByText('1 of 5')).toBeVisible();
+  await expect(all).toHaveAttribute('aria-pressed', 'false');
+  await all.click();
+  await expect(inspector.getByText('Architecture.md')).toBeVisible();
+  await expect(inspector.getByText('1 of 5')).toBeHidden();
+});
+
+test('the All files view lists every file at a commit and opens an unchanged one read-only', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('feat(graph): virtualize commit rows').first().click();
+  const inspector = page.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector.getByText('graphLayout.test.ts')).toBeVisible();
+  await expect(inspector.getByText('Roadmap.md')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'All files' }).click();
+  await expect(inspector.getByText('5 changed')).toBeVisible();
+  await expect(inspector.getByText('Roadmap.md')).toBeVisible();
+  await expect(inspector.getByText('Architecture.md')).toBeVisible();
+  await expect(inspector.getByText('DiffPanel.tsx')).toBeHidden();
+  await inspector.getByRole('button', { name: /^diff/ }).click();
+  await expect(inspector.getByText('DiffPanel.tsx')).toBeVisible();
+
+  await inspector.getByText('Roadmap.md').click();
+  const diff = page.locator('section[aria-label="Diff for docs/Roadmap.md"]');
+  await expect(diff).toBeVisible();
+  await expect(diff.getByText('unchanged', { exact: true })).toBeVisible();
+  await expect(diff.getByText('import { render }')).toBeVisible();
+  await expect(diff.getByText(/^@@/)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Folder tree' }).click();
+  await expect(inspector.getByText('Roadmap.md')).toHaveCount(0);
+  await expect(inspector.getByText('Architecture.md')).toBeVisible();
+});
+
+test('the All files view shows the whole working tree with changed files still actionable', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const inspector = page.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector.getByText('README.md')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'All files' }).click();
+  await expect(inspector.getByText('6 changed')).toBeVisible();
+  await expect(inspector.getByText('README.md')).toBeVisible();
+  await expect(inspector.getByLabel('Stage src/core/ipc.ts')).toBeVisible();
+  await expect(inspector.getByLabel('Unstage src/features/graph/CommitGraph.tsx')).toBeVisible();
+  await expect(inspector.getByText('DiffPanel.tsx')).toBeHidden();
+
+  await inspector.getByText('README.md').click();
+  const diff = page.locator('section[aria-label="Diff for README.md"]');
+  await expect(diff.getByText('unchanged', { exact: true })).toBeVisible();
+  await expect(diff.getByRole('button', { name: 'Stage file' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Flat file list' }).click();
+  await expect(inspector.getByText('README.md')).toHaveCount(0);
+  await expect(inspector.getByText(/^Changes/)).toBeVisible();
+});
+
+test('dragging a diff selection past the bottom edge keeps growing it and copies every line', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await page.getByText('palette-seed.sql').first().click();
+  await expect(page.getByText('temple gold').first()).toBeVisible();
+
+  const scroller = page.locator('section[aria-label^="Diff for"] div.overflow-y-auto');
+  await scroller.evaluate((el) => {
+    el.scrollTop = Math.max(0, el.scrollTop - 1500);
+  });
+  const box = await scroller.boundingBox();
+  if (!box) throw new Error('diff scroller not laid out');
+  const start = await scroller.evaluate((el) => {
+    const bounds = el.getBoundingClientRect();
+    const rows = [...el.querySelectorAll<HTMLElement>('[data-diff-row]')];
+    const row = rows.find((r) => {
+      const rect = r.getBoundingClientRect();
+      return rect.top > bounds.top + 40 && rect.bottom < bounds.bottom - 140;
+    });
+    if (!row) return null;
+    const rect = row.getBoundingClientRect();
+    return { text: row.textContent ?? '', x: rect.left + 30, y: rect.top + rect.height / 2 };
+  });
+  if (!start) throw new Error('no diff row to start from');
+
+  const below = { x: start.x + 200, y: box.y + box.height + 30 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(below.x, below.y, { steps: 8 });
+  for (let i = 0; i < 6; i += 1) {
+    await page.waitForTimeout(100);
+    await page.mouse.move(below.x + (i % 2), below.y + (i % 2));
+  }
+  await page.mouse.up();
+
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.type)).toBe('Range');
+  await page.evaluate(() => {
+    (window as unknown as { __copied: string | null }).__copied = null;
+    document.addEventListener('copy', (e) => {
+      (window as unknown as { __copied: string | null }).__copied = e.clipboardData?.getData('text/plain') ?? '';
+    });
+  });
+  const copied = () => page.evaluate(() => (window as unknown as { __copied: string | null }).__copied);
+  await page.keyboard.press('ControlOrMeta+c');
+  await expect.poll(copied).not.toBeNull();
+  const selected = (await copied()) as string;
+  const lines = selected.split('\n');
+  expect(lines.length).toBeGreaterThanOrEqual(6);
+  expect(start.text.endsWith(lines[0])).toBe(true);
+
+  await scroller.evaluate((el) => {
+    el.scrollTop = Math.max(0, el.scrollTop - 4000);
+  });
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.type)).toBe('Range');
+  await page.keyboard.press('ControlOrMeta+c');
+  await expect.poll(copied).toBe(selected);
+});

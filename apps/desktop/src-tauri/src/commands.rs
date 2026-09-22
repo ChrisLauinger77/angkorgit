@@ -1,7 +1,9 @@
 use tauri::{AppHandle, Emitter, State};
 
 use crate::core::types::*;
-use crate::core::{branch, commit, conflict, diff, history, misc, remote, repo, stage, worktree};
+use crate::core::{
+    branch, commit, conflict, diff, files, history, misc, remote, repo, stage, worktree,
+};
 use crate::error::AppResult;
 use crate::terminal::TerminalState;
 
@@ -899,4 +901,19 @@ pub async fn file_blame(
     rev: Option<String>,
 ) -> AppResult<crate::core::blame::FileBlame> {
     blocking(move || crate::core::blame::blame_file(&path, &file, rev.as_deref())).await
+}
+
+#[tauri::command]
+pub async fn tree_files(path: String, oid: String) -> AppResult<Vec<String>> {
+    blocking(move || files::tree_files(&path, &oid)).await
+}
+
+#[tauri::command]
+pub async fn index_files(path: String) -> AppResult<Vec<String>> {
+    blocking(move || files::index_files(&path)).await
+}
+
+#[tauri::command]
+pub async fn file_contents(path: String, file: String, oid: Option<String>) -> AppResult<FileDiff> {
+    blocking(move || files::file_contents(&path, &file, oid.as_deref())).await
 }

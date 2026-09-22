@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 export type DiffViewMode = 'inline' | 'split';
 
+export type FileView = 'list' | 'tree' | 'all';
+
 export interface GraphColumns {
   refs: boolean;
   author: boolean;
@@ -37,6 +39,7 @@ export interface CenterDiffTarget {
   staged?: boolean;
   oid?: string;
   oldPath?: string | null;
+  unchanged?: boolean;
 }
 
 export interface InteractiveRebasePreset {
@@ -102,7 +105,7 @@ interface UiState {
   conflictFile: string | null;
   repoTabs: string[];
   worktreeTabs: string[];
-  fileTree: boolean;
+  fileView: FileView;
   fileFilterOpen: boolean;
   fileFilterFocusSeq: number;
   inspectorFocusSeq: number;
@@ -143,7 +146,7 @@ interface UiState {
   setCommitBoxHeight: (height: number | null) => void;
   setGraphColumn: (column: keyof GraphColumns, on: boolean) => void;
   setGraphTail: (on: boolean) => void;
-  setFileTree: (on: boolean) => void;
+  setFileView: (view: FileView) => void;
   setFileFilterOpen: (on: boolean) => void;
   focusInspector: () => void;
   requestEditMessage: (oid: string) => void;
@@ -190,7 +193,7 @@ export const useUi = create<UiState>()(
   conflictFile: null,
   repoTabs: [],
   worktreeTabs: [],
-  fileTree: false,
+  fileView: 'list',
   fileFilterOpen: false,
   fileFilterFocusSeq: 0,
   inspectorFocusSeq: 0,
@@ -276,7 +279,7 @@ export const useUi = create<UiState>()(
   setGraphColumn: (column, on) =>
     set((s) => ({ graphColumns: { ...s.graphColumns, [column]: on } })),
   setGraphTail: (graphTail) => set({ graphTail }),
-  setFileTree: (fileTree) => set({ fileTree }),
+  setFileView: (fileView) => set({ fileView }),
   focusInspector: () => set((s) => ({ inspectorFocusSeq: s.inspectorFocusSeq + 1 })),
   focusGraph: () => set((s) => ({ graphFocusSeq: s.graphFocusSeq + 1 })),
   requestEditMessage: (oid) =>
@@ -287,10 +290,12 @@ export const useUi = create<UiState>()(
     {
       name: 'angkorgit-ui',
       merge: (persisted, current) => {
-        const saved = (persisted ?? {}) as Partial<UiState>;
+        const saved = (persisted ?? {}) as Partial<UiState> & { fileTree?: boolean };
+        const { fileTree: legacyFileTree, ...rest } = saved;
         return {
           ...current,
-          ...saved,
+          ...rest,
+          fileView: saved.fileView ?? (legacyFileTree ? 'tree' : current.fileView),
           graphColumns: { ...DEFAULT_GRAPH_COLUMNS, ...(saved.graphColumns ?? {}) },
         };
       },
@@ -302,7 +307,7 @@ export const useUi = create<UiState>()(
         wrapLines: state.wrapLines,
         repoTabs: state.repoTabs,
         worktreeTabs: state.worktreeTabs,
-        fileTree: state.fileTree,
+        fileView: state.fileView,
         sidebarSections: state.sidebarSections,
         commitBoxHeight: state.commitBoxHeight,
         graphColumns: state.graphColumns,

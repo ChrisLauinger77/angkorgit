@@ -2677,3 +2677,83 @@ fn unpushed_lists_only_commits_missing_from_every_remote_ref() {
     track(&two);
     assert!(core::unpushed(repo.path()).unwrap().is_empty());
 }
+
+#[test]
+fn tree_files_lists_every_path_at_a_commit_including_unchanged_ones() {
+    let repo = TempRepo::new();
+    repo.write("README.md", "hi\n");
+    repo.write("src/lib.rs", "fn a() {}\n");
+    repo.write("src/nested/deep.rs", "fn b() {}\n");
+    commit_all(&repo, "base");
+    repo.write("src/lib.rs", "fn a() {}\nfn c() {}\n");
+    repo.write("docs/guide.md", "guide\n");
+    let oid = commit_all(&repo, "touch two");
+
+    let mut files = core::tree_files(repo.path(), &oid).unwrap();
+    files.sort();
+    assert_eq!(
+        files,
+        vec![
+            "README.md",
+            "docs/guide.md",
+            "src/lib.rs",
+            "src/nested/deep.rs"
+        ]
+    );
+    let changed = core::commit_files(repo.path(), &oid).unwrap();
+    assert_eq!(changed.len(), 2);
+}
+
+#[test]
+fn index_files_lists_tracked_paths_but_not_untracked_ones() {
+    let repo = TempRepo::new();
+    repo.write("a.txt", "a\n");
+    repo.write("dir/b.txt", "b\n");
+    commit_all(&repo, "base");
+    repo.write("untracked.txt", "u\n");
+    repo.write("dir/staged-new.txt", "s\n");
+    core::stage_file(repo.path(), "dir/staged-new.txt").unwrap();
+
+    let mut files = core::index_files(repo.path()).unwrap();
+    files.sort();
+    assert_eq!(files, vec!["a.txt", "dir/b.txt", "dir/staged-new.txt"]);
+}
+
+#[test]
+fn file_contents_reads_a_file_at_a_commit_and_in_the_working_copy_as_context_lines() {
+    let repo = TempRepo::new();
+    repo.write("notes.txt", "one\ntwo\nthree\n");
+    let oid = commit_all(&repo, "notes");
+    repo.write("notes.txt", "one\ntwo\nthree\nfour");
+
+    let at_commit = core::file_contents(repo.path(), "notes.txt", Some(&oid)).unwrap();
+    assert_eq!(at_commit.status, "unchanged");
+    assert_eq!(at_commit.additions, 0);
+    assert_eq!(at_commit.hunks.len(), 1);
+    let lines: Vec<&str> = at_commit.hunks[0]
+        .lines
+        .iter()
+        .map(|l| l.content.as_str())
+        .collect();
+    assert_eq!(lines, vec!["one", "two", "three"]);
+    assert!(at_commit.hunks[0].lines.iter().all(|l| l.kind == "context"));
+    assert_eq!(at_commit.hunks[0].lines[2].new_line_no, Some(3));
+
+    let on_disk = core::file_contents(repo.path(), "notes.txt", None).unwrap();
+    let lines: Vec<&str> = on_disk.hunks[0]
+        .lines
+        .iter()
+        .map(|l| l.content.as_str())
+        .collect();
+    assert_eq!(lines, vec!["one", "two", "three", "four"]);
+
+    let missing = core::file_contents(repo.path(), "nope.txt", Some(&oid))
+        .err()
+        .expect("a path missing from the commit must error");
+    assert!(missing.to_string().contains("not part of commit"));
+
+    repo.write("blob.bin", "ab\0cd");
+    let binary = core::file_contents(repo.path(), "blob.bin", None).unwrap();
+    assert!(binary.is_binary);
+    assert!(binary.hunks.is_empty());
+}

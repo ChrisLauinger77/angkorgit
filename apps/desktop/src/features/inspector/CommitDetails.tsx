@@ -10,6 +10,7 @@ import {
   Code,
   Copy,
   ExternalLink,
+  File as FileIcon,
   FolderOpen,
   History,
   Maximize2,
@@ -19,8 +20,15 @@ import {
   Tag as TagIcon,
   UserRoundSearch,
 } from 'lucide-react';
-import type { CommitFileInfo, CommitInfo, FileDiff } from '@angkorgit/core';
-import { aiCapabilities, filterFiles, joinCommitMessage, splitCommitMessage } from '@angkorgit/core';
+import type { AllFilesEntry, CommitFileInfo, CommitInfo, FileDiff } from '@angkorgit/core';
+import {
+  aiCapabilities,
+  allFiles,
+  filterFiles,
+  foldersWithChanges,
+  joinCommitMessage,
+  splitCommitMessage,
+} from '@angkorgit/core';
 import {
   Badge,
   Button,
@@ -64,6 +72,9 @@ const DESCRIPTION_MIN = 72;
 const DESCRIPTION_MAX = 360;
 
 const diffPath = (diff: CommitFileInfo) => diff.path;
+const entryPath = (entry: AllFilesEntry<CommitFileInfo>) => entry.path;
+
+type ChangeKind = CommitFileInfo['status'];
 
 const VIRTUAL_FILE_THRESHOLD = 200;
 const FILE_ROW_HEIGHT = 34;
@@ -78,24 +89,50 @@ const statusMeta: Record<
   renamed: { label: 'renamed', mark: 'R', className: 'text-primary', tone: 'primary' },
 };
 
-function ChangeSummary({ diffs }: { diffs: CommitFileInfo[] }) {
+function ChangeFilter({
+  diffs,
+  value,
+  onChange,
+}: {
+  diffs: CommitFileInfo[];
+  value: ChangeKind | null;
+  onChange: (kind: ChangeKind | null) => void;
+}) {
   if (diffs.length === 0) return <>No changes</>;
-  const order: CommitFileInfo['status'][] = ['modified', 'new', 'deleted', 'renamed'];
+  const order: ChangeKind[] = ['modified', 'new', 'deleted', 'renamed'];
   const parts = order
     .map((status) => ({ status, count: diffs.filter((d) => d.status === status).length }))
     .filter((p) => p.count > 0);
+  const token = 'flex h-5 items-center gap-1 rounded px-1 tabular-nums transition-colors hover:bg-surface-raised';
   return (
-    <span className="flex items-center gap-x-2.5 whitespace-nowrap">
+    <span className="flex items-center gap-0.5 whitespace-nowrap" role="group" aria-label="Filter files by kind of change">
+      <button
+        type="button"
+        aria-pressed={value === null}
+        title="Show every file"
+        className={cn(token, value === null ? 'bg-surface-raised font-medium text-foreground' : 'text-muted')}
+        onClick={() => onChange(null)}
+      >
+        All
+      </button>
       {parts.map(({ status, count }) => (
-        <span
+        <button
           key={status}
-          title={`${count} ${statusMeta[status].label}`}
+          type="button"
+          aria-pressed={value === status}
           aria-label={`${count} ${statusMeta[status].label}`}
-          className={cn('flex items-center gap-1 tabular-nums', statusMeta[status].className)}
+          title={value === status ? 'Show every file' : `Show only ${statusMeta[status].label} files`}
+          className={cn(
+            token,
+            statusMeta[status].className,
+            value === status && 'bg-surface-raised font-medium',
+            value !== null && value !== status && 'opacity-60',
+          )}
+          onClick={() => onChange(value === status ? null : status)}
         >
           <span className="font-mono">{statusMeta[status].mark}</span>
           {count}
-        </span>
+        </button>
       ))}
     </span>
   );
@@ -172,7 +209,9 @@ export function CommitDetails({
   const openCenterDiff = useUi((s) => s.openCenterDiff);
   const closeCenterDiff = useUi((s) => s.closeCenterDiff);
   const centerDiff = useUi((s) => s.centerDiff);
-  const fileTree = useUi((s) => s.fileTree);
+  const fileView = useUi((s) => s.fileView);
+  const fileTree = fileView !== 'list';
+  const allMode = fileView === 'all';
   const repoPath = useRepo((s) => s.repo?.path ?? '');
   const editorId = useSettings((s) => s.editorId);
   const { editors } = useEditors();
@@ -192,12 +231,46 @@ export function CommitDetails({
   useEffect(() => {
     if (!fileFilterOpen) setFileQuery('');
   }, [fileFilterOpen]);
-  const filtering = fileQuery.trim().length > 0;
-  const shownDiffs = useMemo(() => filterFiles(diffs, diffPath, fileQuery), [diffs, fileQuery]);
+  const [kindFilter, setKindFilter] = useState<ChangeKind | null>(null);
+  const filtering = fileQuery.trim().length > 0 || kindFilter !== null;
+  const shownDiffs = useMemo(() => {
+    const byQuery = filterFiles(diffs, diffPath, fileQuery);
+    return kindFilter ? byQuery.filter((d) => d.status === kindFilter) : byQuery;
+  }, [diffs, fileQuery, kindFilter]);
+  const [tree, setTree] = useState<string[] | null>(null);
+  const [treeError, setTreeError] = useState<string | null>(null);
+  const [treeSeq, setTreeSeq] = useState(0);
+  useEffect(() => {
+    if (!allMode || !repoPath) return;
+    let cancelled = false;
+    setTree(null);
+    setTreeError(null);
+    void ipc
+      .treeFiles(repoPath, commit.oid)
+      .then((paths) => {
+        if (!cancelled) setTree(paths);
+      })
+      .catch((error) => {
+        if (!cancelled) setTreeError(String((error as { message?: string }).message ?? error));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [allMode, repoPath, commit.oid, treeSeq]);
+  const allEntries = useMemo(
+    () => (allMode && tree ? allFiles(tree, diffs, diffPath) : []),
+    [allMode, tree, diffs],
+  );
+  const changedFolders = useMemo(() => foldersWithChanges(allEntries), [allEntries]);
+  const shownEntries = useMemo(() => {
+    const byQuery = filterFiles(allEntries, entryPath, fileQuery);
+    return kindFilter ? byQuery.filter((e) => e.change?.status === kindFilter) : byQuery;
+  }, [allEntries, fileQuery, kindFilter]);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const pickAnchor = useRef<string | null>(null);
   useEffect(() => {
     setFileQuery('');
+    setKindFilter(null);
     setPicked(new Set());
     pickAnchor.current = null;
   }, [commit.oid]);
@@ -380,7 +453,14 @@ export function CommitDetails({
     }
   };
 
-  const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: CommitFileInfo } | null>(null);
+  const [fileMenu, setFileMenu] = useState<{
+    x: number;
+    y: number;
+    path: string;
+    oid: string;
+    deleted: boolean;
+    changed: boolean;
+  } | null>(null);
   const restoreFromStash = async (files: string[]) => {
     if (!stash || files.length === 0) return;
     try {
@@ -414,7 +494,14 @@ export function CommitDetails({
           style={fileTree && depth !== undefined ? { paddingLeft: treeIndent(depth) } : undefined}
           onContextMenu={(e) => {
             e.preventDefault();
-            setFileMenu({ x: e.clientX, y: e.clientY, file: diff });
+            setFileMenu({
+              x: e.clientX,
+              y: e.clientY,
+              path: diff.path,
+              oid: diffOid,
+              deleted: diff.status === 'deleted',
+              changed: true,
+            });
           }}
         >
         {stash && (
@@ -470,6 +557,45 @@ export function CommitDetails({
       </Hint>
     );
   };
+
+  const renderPlainRow = (file: string, depth?: number) => {
+    const active = centerDiff?.path === file && centerDiff.oid === commit.oid && !!centerDiff.unchanged;
+    return (
+      <Hint key={`plain-${file}`} label={file} side="left" className="max-w-[34rem] font-mono">
+        <div
+          data-active-file={active || undefined}
+          data-unchanged-file
+          className={cn(
+            'group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+            active ? 'bg-primary/10 text-foreground' : 'text-muted hover:bg-surface-raised',
+          )}
+          style={fileTree && depth !== undefined ? { paddingLeft: treeIndent(depth) } : undefined}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setFileMenu({ x: e.clientX, y: e.clientY, path: file, oid: commit.oid, deleted: false, changed: false });
+          }}
+        >
+          {stash && <span className="size-4 shrink-0" />}
+          <button
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            onClick={() => {
+              if (active) closeCenterDiff();
+              else openCenterDiff({ path: file, oid: commit.oid, unchanged: true });
+            }}
+          >
+            <span className="flex w-5 shrink-0 justify-center">
+              <FileIcon className="size-3.5 text-faint" />
+            </span>
+            <span className="min-w-0 flex-1 truncate">{basename(file)}</span>
+            <ChevronRight className={cn('size-3.5 shrink-0 text-faint transition-transform', active && 'rotate-90')} />
+          </button>
+        </div>
+      </Hint>
+    );
+  };
+
+  const renderEntry = (entry: AllFilesEntry<CommitFileInfo>, depth?: number) =>
+    entry.change ? renderDiffRow(entry.change, depth) : renderPlainRow(entry.path, depth);
 
   const explain = async () => {
     const key = explainKey;
@@ -739,7 +865,18 @@ export function CommitDetails({
             Files
             {!loading && !error && (
               <span className="ml-1 text-faint">
-                {filtering ? (
+                {allMode && tree ? (
+                  filtering ? (
+                    <>
+                      {shownEntries.length} <span className="font-normal normal-case tracking-normal">of {allEntries.length}</span>
+                    </>
+                  ) : (
+                    <>
+                      {allEntries.length}{' '}
+                      <span className="font-normal normal-case tracking-normal">· {diffs.length} changed</span>
+                    </>
+                  )
+                ) : filtering ? (
                   <>
                     {shownDiffs.length} <span className="font-normal normal-case tracking-normal">of {diffs.length}</span>
                   </>
@@ -750,7 +887,7 @@ export function CommitDetails({
             )}
           </span>
           <span className="flex min-w-0 items-center gap-1 text-[11px] font-normal normal-case tracking-normal">
-            {loading ? 'Loading…' : error ? '' : <ChangeSummary diffs={diffs} />}
+            {loading ? 'Loading…' : error ? '' : <ChangeFilter diffs={diffs} value={kindFilter} onChange={setKindFilter} />}
             {fileTree && !loading && !error && (
               <FileTreeFoldButton state={foldState} onFold={(mode) => setFold((f) => nextFold(f, mode))} />
             )}
@@ -822,6 +959,36 @@ export function CommitDetails({
               Retry
             </Button>
           </div>
+        ) : allMode ? (
+          treeError ? (
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className="min-w-0 flex-1 text-xs text-danger [overflow-wrap:anywhere]">
+                Could not list the files: {treeError}
+              </span>
+              <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setTreeSeq((n) => n + 1)}>
+                Retry
+              </Button>
+            </div>
+          ) : tree === null ? (
+            <div className="space-y-1">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-7 animate-pulse rounded-md bg-surface-raised" />
+              ))}
+            </div>
+          ) : shownEntries.length === 0 ? (
+            <p className="px-2 py-1.5 text-xs text-faint">
+              {filtering ? 'No files match the filter.' : 'This commit has no files.'}
+            </p>
+          ) : (
+            <FileTree
+              items={shownEntries}
+              pathOf={entryPath}
+              renderFile={renderEntry}
+              fold={fold}
+              onFoldState={setFoldState}
+              defaultCollapsed={(folder) => !changedFolders.has(folder)}
+            />
+          )
         ) : shownDiffs.length === 0 && filtering ? (
           <p className="px-2 py-1.5 text-xs text-faint">No files match the filter.</p>
         ) : fileTree ? (
@@ -838,13 +1005,13 @@ export function CommitDetails({
             <span style={{ position: 'fixed', left: fileMenu.x, top: fileMenu.y }} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="bottom">
-            <DropdownMenuLabel className="max-w-64 truncate font-mono">{fileMenu.file.path}</DropdownMenuLabel>
-            {stash && (
+            <DropdownMenuLabel className="max-w-64 truncate font-mono">{fileMenu.path}</DropdownMenuLabel>
+            {stash && fileMenu.changed && (
               <>
-                <DropdownMenuItem onClick={() => void restoreFromStash([fileMenu.file.path])}>
+                <DropdownMenuItem onClick={() => void restoreFromStash([fileMenu.path])}>
                   <ArchiveRestore /> Apply this file to the working copy
                 </DropdownMenuItem>
-                {picked.size > 1 && picked.has(fileMenu.file.path) && (
+                {picked.size > 1 && picked.has(fileMenu.path) && (
                   <DropdownMenuItem onClick={() => void restoreFromStash([...picked])}>
                     <ArchiveRestore /> Apply {picked.size} selected files
                   </DropdownMenuItem>
@@ -853,33 +1020,33 @@ export function CommitDetails({
               </>
             )}
             <DropdownMenuItem
-              disabled={fileMenu.file.status === 'deleted'}
-              onClick={() => useUi.getState().openEditor(fileMenu.file.path)}
+              disabled={fileMenu.deleted}
+              onClick={() => useUi.getState().openEditor(fileMenu.path)}
             >
               <Pencil /> Edit file
             </DropdownMenuItem>
             {editor && (
               <DropdownMenuItem
-                disabled={fileMenu.file.status === 'deleted'}
-                onClick={() => void openInEditor(editor.id, `${repoPath}/${fileMenu.file.path}`)}
+                disabled={fileMenu.deleted}
+                onClick={() => void openInEditor(editor.id, `${repoPath}/${fileMenu.path}`)}
               >
                 <Code /> Open in {editor.label}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => useUi.getState().openFileHistory(fileMenu.file.path)}>
+            <DropdownMenuItem onClick={() => useUi.getState().openFileHistory(fileMenu.path)}>
               <History /> File history
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={fileMenu.file.status === 'deleted'}
-              onClick={() => useUi.getState().openBlame(fileMenu.file.path, fileMenu.file.sourceOid ?? commit.oid)}
+              disabled={fileMenu.deleted}
+              onClick={() => useUi.getState().openBlame(fileMenu.path, fileMenu.oid)}
             >
               <UserRoundSearch /> Blame at this commit
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={fileMenu.file.status === 'deleted'}
+              disabled={fileMenu.deleted}
               onClick={() =>
                 void ipc
-                  .openPath(`${repoPath}/${fileMenu.file.path}`)
+                  .openPath(`${repoPath}/${fileMenu.path}`)
                   .catch((error) =>
                     toast.error(`Could not open the file: ${(error as { message?: string }).message ?? error}`),
                   )
@@ -888,10 +1055,10 @@ export function CommitDetails({
               <ExternalLink /> Open in external app
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={fileMenu.file.status === 'deleted'}
+              disabled={fileMenu.deleted}
               onClick={() =>
                 void ipc
-                  .revealPath(`${repoPath}/${fileMenu.file.path}`)
+                  .revealPath(`${repoPath}/${fileMenu.path}`)
                   .catch((error) =>
                     toast.error(`Could not reveal the file: ${(error as { message?: string }).message ?? error}`),
                   )
@@ -901,7 +1068,7 @@ export function CommitDetails({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                void navigator.clipboard.writeText(fileMenu.file.path);
+                void navigator.clipboard.writeText(fileMenu.path);
                 toast.success('Path copied');
               }}
             >
@@ -909,7 +1076,7 @@ export function CommitDetails({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                void navigator.clipboard.writeText(`${repoPath}/${fileMenu.file.path}`);
+                void navigator.clipboard.writeText(`${repoPath}/${fileMenu.path}`);
                 toast.success('Absolute path copied');
               }}
             >

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { CommitFileInfo, CommitInfo } from '@angkorgit/core';
-import { FolderTree, List, Search, X } from 'lucide-react';
+import { Files, FolderTree, List, Search, X } from 'lucide-react';
 import { Hint, Button, cn } from '@angkorgit/design-system';
 import { useGraph } from '@/features/graph/store';
 import { useRepo } from '@/features/repository/store';
@@ -13,8 +13,8 @@ import { CommitDetails } from './CommitDetails';
 export function Inspector() {
   const selectedOid = useGraph((s) => s.selectedOid);
   const repoPath = useRepo((s) => s.repo?.path);
-  const fileTree = useUi((s) => s.fileTree);
-  const setFileTree = useUi((s) => s.setFileTree);
+  const fileView = useUi((s) => s.fileView);
+  const setFileView = useUi((s) => s.setFileView);
 
   const [commit, setCommit] = useState<CommitInfo | null>(null);
   const [diffs, setDiffs] = useState<CommitFileInfo[]>([]);
@@ -101,8 +101,9 @@ export function Inspector() {
               variant="ghost"
               size="icon-sm"
               aria-label="Flat file list"
-              className={cn(!fileTree && 'bg-surface-raised text-foreground')}
-              onClick={() => setFileTree(false)}
+              aria-pressed={fileView === 'list'}
+              className={cn(fileView === 'list' && 'bg-surface-raised text-foreground')}
+              onClick={() => setFileView('list')}
             >
               <List className="size-3.5" />
             </Button>
@@ -112,10 +113,23 @@ export function Inspector() {
               variant="ghost"
               size="icon-sm"
               aria-label="Folder tree"
-              className={cn(fileTree && 'bg-surface-raised text-foreground')}
-              onClick={() => setFileTree(true)}
+              aria-pressed={fileView === 'tree'}
+              className={cn(fileView === 'tree' && 'bg-surface-raised text-foreground')}
+              onClick={() => setFileView('tree')}
             >
               <FolderTree className="size-3.5" />
+            </Button>
+          </Hint>
+          <Hint label={commit || commitError ? 'All files at this commit' : 'All files in the working copy'}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="All files"
+              aria-pressed={fileView === 'all'}
+              className={cn(fileView === 'all' && 'bg-surface-raised text-foreground')}
+              onClick={() => setFileView('all')}
+            >
+              <Files className="size-3.5" />
             </Button>
           </Hint>
           {(commit || commitError) && (

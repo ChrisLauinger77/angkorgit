@@ -549,6 +549,18 @@ export const ipc = {
     if (!isTauri()) return demo.demoCommitFiles();
     return invoke('diff_commit_files', { path, oid });
   },
+  async treeFiles(path: string, oid: string): Promise<string[]> {
+    if (!isTauri()) return demo.demoTreeFiles();
+    return invoke('tree_files', { path, oid });
+  },
+  async indexFiles(path: string): Promise<string[]> {
+    if (!isTauri()) return demo.demoIndexFiles();
+    return invoke('index_files', { path });
+  },
+  async fileContents(path: string, file: string, oid: string | null): Promise<FileDiff> {
+    if (!isTauri()) return demo.demoFileContents(file);
+    return invoke('file_contents', { path, file, oid });
+  },
   async commitFileDiff(
     path: string,
     oid: string,
