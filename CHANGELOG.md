@@ -6,6 +6,13 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-09-22
+
+The whole-tree release. The inspector can show every file at a commit, not only the
+changed ones, a commit's file list filters by kind of change, the sidebar sections wear
+the same gold tiles and count badges as the rest of the app, Push with tags works again,
+and a dead remote no longer stops the others from being fetched.
+
 ### Added
 - **All files view.** The Inspector's list and tree toggle has a third mode, All files,
   which shows every file at the selected commit (or in the working copy) as a folder tree
@@ -1389,7 +1396,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/cheat2001/angkorgit/compare/v0.13.0...v0.14.0
