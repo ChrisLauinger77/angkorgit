@@ -6,6 +6,28 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **All files view.** The Inspector's list and tree toggle has a third mode, All files,
+  which shows every file at the selected commit (or in the working copy) as a folder tree
+  with the changed ones marked. Folders without changes start collapsed, unchanged files
+  open read-only in the centre with an "unchanged" badge, and changed files keep their
+  diff, checkbox and menus.
+- **Filter a commit's files by kind of change.** The M, A, D and R counts in a commit's
+  Files header are buttons now. Click one to see only those files, and All brings the rest
+  back.
+
+### Changed
+- **Sidebar sections are easier to tell apart.** Each section header (Branches, Worktrees,
+  Merge requests, Remotes, Tags, Stashes, Submodules) now carries its icon in a small gold
+  tile and its count in a badge, the same devices the rest of the app uses, so two open
+  lists no longer run into each other and nothing needed a divider.
+
+### Fixed
+- **Selecting past the bottom of a diff.** Dragging a selection below the visible area used
+  to fall apart once the view scrolled: copy returned one line and the highlight moved
+  when you scrolled back. The selection now grows to the last visible line while you hold
+  the mouse below the diff, and copy returns every selected line.
+
 ## [0.16.0] — 2026-09-20
 
 The quiet release. macOS stops asking for folder access every time you come back to
