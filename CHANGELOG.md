@@ -29,6 +29,9 @@ All notable changes to AngKorGit are documented here. The format follows
   the mouse below the diff, and copy returns every selected line.
 - **Push with tags failed** with `not a valid reference 'refs/tags/*'`. libgit2 does not
   expand the glob git uses, so the engine now names each local tag in its own refspec. (#34)
+- **Fetch keeps checking every remote.** A failing remote no longer prevents the others
+  from being fetched on later automatic runs. Partial results name the failed remotes,
+  and the status bar keeps showing when a successful fetch or pull last happened.
 
 ## [0.16.0] — 2026-09-20
 

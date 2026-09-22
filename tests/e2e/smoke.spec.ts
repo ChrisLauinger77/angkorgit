@@ -1412,6 +1412,113 @@ test('the status bar says when the repository was last fetched', async ({ page }
   await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
 });
 
+test('auto fetch tries all remotes again after a partial failure', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
+  await page.clock.install();
+
+  await page.evaluate(async () => {
+    const [{ ipc }, { useRepo }] = await Promise.all([
+      import('/src/core/ipc.ts'),
+      import('/src/features/repository/store.ts'),
+    ]);
+    const tracker = window as unknown as { __autoFetchCalls: string[] };
+    tracker.__autoFetchCalls = [];
+    ipc.fetch = async (_path, name) => {
+      tracker.__autoFetchCalls.push(name);
+      if (name === 'upstream') throw new Error('unavailable');
+      return { status: 'ok', message: 'Fetched origin' };
+    };
+    useRepo.setState({
+      lastFetchAt: null,
+      remotes: [
+        { name: 'origin', url: 'git@github.com:demo/angkorgit.git' },
+        { name: 'upstream', url: 'git@github.com:demo/upstream.git' },
+      ],
+    });
+  });
+
+  const calls = () => page.evaluate(() => (window as unknown as { __autoFetchCalls: string[] }).__autoFetchCalls);
+  await expect.poll(calls).toEqual(['origin', 'upstream']);
+  await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
+  await expect(page.locator('[data-fetch-status]')).toHaveText(/Fetch incomplete/);
+
+  await page.clock.runFor(61_000);
+  await expect.poll(calls).toEqual(['origin', 'upstream', 'origin', 'upstream']);
+});
+
+test('partial fetches keep the timestamp and name failed remotes without raw errors', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
+
+  await page.evaluate(async () => {
+    const [{ ipc }, { useRepo }, { useSettings }] = await Promise.all([
+      import('/src/core/ipc.ts'),
+      import('/src/features/repository/store.ts'),
+      import('/src/features/settings/store.ts'),
+    ]);
+    useSettings.getState().setAutoFetchMinutes(0);
+    ipc.remotes = async () => [
+      { name: 'origin', url: 'git@github.com:demo/angkorgit.git' },
+      { name: 'upstream', url: 'git@github.com:demo/upstream.git' },
+    ];
+    ipc.fetch = async (_path, name) => {
+      if (name === 'upstream') throw new Error('private token expired');
+      return { status: 'ok', message: 'Fetched origin' };
+    };
+    await useRepo.getState().refresh();
+  });
+
+  const fetchButton = page.getByRole('button', { name: 'Fetch', exact: true });
+  await fetchButton.click();
+  await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
+  const incomplete = page.locator('[data-fetch-status]');
+  await expect(incomplete).toHaveText(/Fetch incomplete/);
+  await expect(incomplete).toHaveClass(/text-faint/);
+  await incomplete.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Failed to fetch: upstream');
+
+  await page.evaluate(async () => {
+    const { ipc } = await import('/src/core/ipc.ts');
+    ipc.fetch = async () => { throw new Error('offline libgit2 detail'); };
+  });
+  await fetchButton.click();
+  await expect(page.locator('[data-last-fetch]')).toBeVisible();
+  await incomplete.hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Failed to fetch: origin, upstream');
+
+  await page.evaluate(async () => {
+    const { useRepo } = await import('/src/features/repository/store.ts');
+    useRepo.setState({ lastFetchAt: Date.now() - 2 * 60 * 60_000 });
+  });
+  await expect(page.locator('[data-last-fetch]')).not.toHaveText(/Fetched just now/);
+  await page.getByRole('button', { name: 'Pull', exact: true }).click();
+  await expect(page.locator('[data-last-fetch]')).toHaveText(/Fetched just now/);
+  await expect(incomplete).toHaveText(/Fetch incomplete/);
+
+  await page.evaluate(async () => {
+    const { ipc } = await import('/src/core/ipc.ts');
+    ipc.fetch = async () => ({ status: 'ok', message: 'Fetched' });
+  });
+  await fetchButton.click();
+  await expect(incomplete).toHaveCount(0);
+
+  await page.evaluate(async () => {
+    const [{ ipc }, { useRepo }] = await Promise.all([
+      import('/src/core/ipc.ts'),
+      import('/src/features/repository/store.ts'),
+    ]);
+    ipc.remotes = async () => [];
+    await useRepo.getState().refresh();
+  });
+  await expect(fetchButton).toBeDisabled();
+  await page.mouse.move(0, 0);
+  await fetchButton.locator('..').hover();
+  await expect(page.getByRole('tooltip')).toHaveText('No remotes configured');
+});
+
 test('the diff header opens blame inside file history with authors per hunk', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();
