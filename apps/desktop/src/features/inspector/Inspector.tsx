@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { CommitFileInfo, CommitInfo } from '@angkorgit/core';
-import { Files, FolderTree, List, Search, X } from 'lucide-react';
+import { FolderOpen, FolderTree, List, Search, X } from 'lucide-react';
 import { Hint, Button, cn } from '@angkorgit/design-system';
 import { useGraph } from '@/features/graph/store';
 import { useRepo } from '@/features/repository/store';
@@ -129,7 +129,7 @@ export function Inspector() {
               className={cn(fileView === 'all' && 'bg-surface-raised text-foreground')}
               onClick={() => setFileView('all')}
             >
-              <Files className="size-3.5" />
+              <FolderOpen className="size-3.5" />
             </Button>
           </Hint>
           {(commit || commitError) && (

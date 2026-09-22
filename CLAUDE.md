@@ -1399,7 +1399,8 @@ features/
 │                               like GitKraken"): ui.fileView 'list' | 'tree' | 'all'
 │                               (persisted; the persist merge maps the old boolean fileTree
 │                               → 'tree'), three aria-pressed header buttons List/FolderTree/
-│                               Files. 'all' renders EVERY file — commit: ipc.treeFiles
+│                               FolderOpen (lucide `Files` was tried first and read as a
+│                               copy icon, owner 2026-09-22). 'all' renders EVERY file — commit: ipc.treeFiles
 │                               (engine files.rs) unioned with the change list via core
 │                               allFiles (deleted files stay, keyed by path); working copy:
 │                               ipc.indexFiles ∪ status paths, reloaded on statusVersion
