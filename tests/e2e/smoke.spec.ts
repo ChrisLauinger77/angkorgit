@@ -566,12 +566,14 @@ test('sidebar lists demo pull requests and opens the create dialog', async ({ pa
   await expect(page.getByText(/side-by-side word diff polish/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('Draft', { exact: true })).toBeVisible();
 
+  await page.getByText('Pull requests').hover();
   await page.getByRole('button', { name: 'Create pull request', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Create pull request' })).toBeVisible();
   await expect(page.getByPlaceholder('Title')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('heading', { name: 'Create pull request' })).toBeHidden();
 
+  await page.getByText('Pull requests').hover();
   await page.getByRole('button', { name: 'Create pull request', exact: true }).click();
   await page.getByRole('button', { name: 'Add reviewers' }).click();
   await expect(page.getByRole('menuitemcheckbox', { name: /Dara Kim/ })).toBeVisible();
@@ -632,6 +634,7 @@ test('sidebar lists the demo worktrees and the new worktree dialog opens', async
   await expect(page.getByText('Worktrees', { exact: true })).toBeVisible();
   await expect(page.getByText('angkorgit-feature-diff-viewer')).toBeVisible();
   await expect(page.getByText('folder missing')).toBeVisible();
+  await page.getByText('Worktrees', { exact: true }).hover();
   await page.getByRole('button', { name: 'New worktree' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('New worktree')).toBeVisible();

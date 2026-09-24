@@ -18,6 +18,20 @@ All notable changes to AngKorGit are documented here. The format follows
   as the staged review, including `.angkorgit/review.md`.
 
 ### Changed
+- **Diff header fits narrow windows.** Word diff, line wrapping and whole-file view moved
+  into one View options menu, the change and file counters no longer wrap onto a second
+  line, and below about 960 px the header drops its labels and keeps the icons.
+- **Sidebar headers keep their names.** Section actions only take room while you hover or
+  focus the header, so a narrow sidebar no longer shortens "Worktrees" to "W…".
+- **Working copy file menu.** Discard changes sits next to Delete file at the end of the
+  menu, under one separator, so the two destructive actions are together.
+- **Smaller things.** The uncommitted row wears a plain WIP chip instead of `// WIP`; the
+  welcome page's search box says "Search repositories" and shows its keyboard hints beside
+  it instead of inside a cut-off placeholder; file history shows a proper empty state when
+  a commit did not touch the file; the pull request dialog's notes are hint rows with an
+  icon and a tone, and a trunk branch such as main no longer pre-fills the title; the
+  command palette shows ↑↓ ⏎ esc hints in a footer and ⌘R on Refresh; the lane colour band
+  behind the graph is visible on light themes.
 - **AI answers are written for reviewers.** Explanations come as What it does, Changes and
   Worth checking; reviews as Summary, Findings (Bug, Risk or Nit, quoting the exact line,
   what is wrong, how to fix it) and a Verdict. Both apply to the staged review and the commit

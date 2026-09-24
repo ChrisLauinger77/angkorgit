@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, GitPullRequest, Sparkles, Square, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, GitPullRequest, Info, Sparkles, Square, Users } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
   Spinner,
+  cn,
   Textarea,
 } from '@angkorgit/design-system';
 import { aiCapabilities, defaultForgeTarget, forgeNoun, forgeTargets, sameForgeRepo, type ForgeUser } from '@angkorgit/core';
@@ -33,10 +34,23 @@ import { useUi } from '@/features/ui/store';
 import { aiConfigured, getAiProvider } from '@/features/ai/client';
 import { forgeProviderFor, useForge } from './store';
 
+const TRUNK_BRANCHES = new Set(['main', 'master', 'develop', 'dev', 'trunk', 'release', 'staging', 'production']);
+
 function titleFromBranch(branch: string): string {
+  if (TRUNK_BRANCHES.has(branch)) return '';
   const leaf = branch.split('/').pop() ?? branch;
   const words = leaf.replace(/[-_]+/g, ' ').trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : branch;
+}
+
+function DialogNote({ tone, children }: { tone: 'info' | 'attention'; children: React.ReactNode }) {
+  const Icon = tone === 'info' ? Info : AlertTriangle;
+  return (
+    <p className="flex items-start gap-2 rounded-md bg-surface-raised/70 px-3 py-2 text-xs text-muted">
+      <Icon className={cn('mt-px size-3.5 shrink-0', tone === 'info' ? 'text-info' : 'text-primary')} />
+      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
+    </p>
+  );
 }
 
 interface DialogMeta {
@@ -425,20 +439,20 @@ export function CreatePrDialog() {
             Create as draft
           </label>
           {baseOptions.length === 0 && (
-            <p className="text-xs text-info">
+            <DialogNote tone="info">
               No branches found on {activeTargetName} — fetch it first so the target branch list can fill in.
-            </p>
+            </DialogNote>
           )}
           {notPushed && (
-            <p className="text-xs text-info">
+            <DialogNote tone="attention">
               This branch has not been pushed yet — push it first so {provider.label} can see it.
-            </p>
+            </DialogNote>
           )}
           {!notPushed && unpushed > 0 && (
-            <p className="text-xs text-info">
+            <DialogNote tone="attention">
               {unpushed} commit{unpushed === 1 ? '' : 's'} on this branch {unpushed === 1 ? 'is' : 'are'} not
               pushed yet and will not be part of the {noun}.
-            </p>
+            </DialogNote>
           )}
           {error && <p className="text-xs text-danger [overflow-wrap:anywhere]">{error}</p>}
         </div>

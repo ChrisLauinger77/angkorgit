@@ -567,7 +567,9 @@ components/                   ← RepoTabs (tab strip is overflow-x-auto with th
                                 split-button menu was built first and REPLACED by the
                                 plain button at the owner's request 2026-09-07; palette
                                 mirrors "Pop latest stash" —,
-                                RepoSwitcher dropdown (recents list scrolls inside a
+                                CommandPalette footer shows ↑↓ move / ⏎ run / esc
+│                                close-or-back as Kbd hints and Refresh carries ⌘R (UX
+│                                audit 2026-09-24); RepoSwitcher dropdown (recents list scrolls inside a
                                 viewport-capped menu — max-h min(70vh, radix available
                                 height), open/clone/profile actions stay pinned below)
                                 + "Profile" submenu — assigns the
@@ -649,7 +651,10 @@ features/
 │   │                           destination from settings.cloneRoot (issue #26: the last
 │   │                           folder cloned into is remembered on success; Settings →
 │   │                           Git → "Clone destination" card picks/clears it; a CLI
-│   │                           preset's `into` still wins), WelcomePage (recent rows = icon
+│   │                           preset's `into` still wins), WelcomePage (search Input placeholder is
+│   │                           "Search repositories" with the ↑↓/⏎ hints as Kbd beside
+│   │                           it — the old placeholder carried the hints and was cut off
+│   │                           at the default width, UX audit 2026-09-24; recent rows = icon
 │   │                           tile — FolderTree when the path is in ui.worktreeTabs —,
 │   │                           name, shortenHome(path) `~/…`, time, hover "…" + right-click
 │   │                           menu Open/Reveal/Copy path/Remove; ipc.pathsExist marks
@@ -799,6 +804,12 @@ features/
 │                           switch pl-1 → pl-4 so lanes don't hug the sidebar divider
 │                           (owner feedback); empty state offers "Clear filters"
 │                           when any filter is active),
+│                           WipRow: the uncommitted banner's marker is a dashed
+│                           "WIP" chip (replaced the `// WIP` monospace text that read
+│                           as a glitch, UX audit 2026-09-24); GraphTailDefs stop
+│                           opacities come from tokens --graph-tail-start/mid/end/edge
+│                           (0.18/0.07/0.03/0.32 dark, 0.34/0.14/0.06/0.5 in .light —
+│                           the band was invisible on light themes);
 │                           GraphRow (per-row SVG lanes; REF CHIPS: groupRefs merges
 │                           local+remote of the same name, DROPS 'head' refs when a local
 │                           branch sits on the commit (the tick on that chip is the HEAD
@@ -894,7 +905,11 @@ features/
 │                               plain click clears and opens the diff; state is a local
 │                               `multi {staged, paths}` (cleared on repo switch, pruned
 │                               when files leave the status, Escape clears), rows in it
-│                               render as selected; right-clicking a selected row shows
+│                               render as selected; the SINGLE-FILE MENU keeps both
+│                               destructive entries — Discard changes… and Delete file… —
+│                               together at the END behind one separator (UX audit
+│                               2026-09-24: a red item mid-list and another at the bottom
+│                               read as scattered); right-clicking a selected row shows
 │                               the BULK menu — Stage/Unstage n, Stash n… (StashPreset),
 │                               Discard n… (unstaged side, one confirm, leftovers toasted
 │                               like discardAll) — instead of the single-file menu —
@@ -996,7 +1011,18 @@ features/
 │                               repository/merge.ts abortMergeFlow (confirm →
 │                               mergeAbort → clear merge draft → refresh; refresh
 │                               failures toast separately, never as "Abort failed")
-├── diff/                     ← SINGLE-FILE AI (owner request 2026-09-23, "this generation
+├── diff/                     ← HEADER FITS NARROW PANELS (UX audit 2026-09-24): the h-10
+│                               header is `overflow-hidden whitespace-nowrap`, word diff /
+│                               wrap / whole file live in ONE "View options" DropdownMenu of
+│                               checkbox items (SlidersHorizontal trigger, tinted primary
+│                               when any is on; the large-file wrap note is a faint line in
+│                               the menu), and useCompactHeader (ResizeObserver on the
+│                               header, COMPACT_HEADER_WIDTH 960, data-diff-header
+│                               compact|full) hides the "n changes" text, sr-only's the "n
+│                               of m" counter and drops the Stage/Unstage label (icon +
+│                               Hint) — at 1100 px the counters used to wrap to two lines
+│                               inside the fixed-height bar.
+│                               SINGLE-FILE AI (owner request 2026-09-23, "this generation
 │                               reviews by itself, AI help would be great"): the header
 │                               ends its view-toggle group with a Sparkles icon button
 │                               (aria "AI actions") opening a DropdownMenu — "Explain
@@ -1280,7 +1306,12 @@ features/
 │                               errorDetail (raw, shown in the row tooltip);
 │                               StatusBar/palette browser-link fallback uses the same
 │                               picked remoteUrl),
-│                               CreatePrDialog.tsx (ui dialog kind
+│                               CreatePrDialog.tsx (notes under the form render through
+│                               DialogNote — a surface-raised row with an Info (info) or
+│                               AlertTriangle (attention = primary) icon, replacing three
+│                               identical blue text lines; titleFromBranch returns '' for
+│                               TRUNK_BRANCHES so main/master/develop never pre-fill
+│                               "Main" as the title; UX audit 2026-09-24) (ui dialog kind
 │                               'createPullRequest': source = HEAD; FORK → UPSTREAM (issue
 │                               #26, 2026-09-15): core forgeTargets(remotes, sourceRemote)
 │                               lists every same-kind same-host remote once and
@@ -1338,10 +1369,19 @@ features/
 │                               rows keep faint plain counts, so headers read as headers
 │                               without lines or cards. The badge is RIGHT-ALIGNED at the
 │                               header's edge (owner 2026-09-22, "align together") and the
-│                               hover action slot sits BEFORE it — actions reserve their
-│                               width via opacity, and Worktrees/Pull requests reserve two
-│                               buttons, so a badge after the slot never lined up; the badge
-│                               is outside the toggle button and gets its own onClick. data-sidebar-section-header / -body
+│                               hover action slot sits BEFORE it; since the UX audit
+│                               (2026-09-24) the slot is `flex w-0 overflow-hidden
+│                               group-hover:w-auto group-focus-within:w-auto` — it takes
+│                               NO width until the header is hovered or focused, because
+│                               the reserved slots used to shrink the label to "W…"/"P…"
+│                               in a narrow sidebar; it stays RENDERED (w-0, never
+│                               display:none) so the 28px icon button keeps the row height
+│                               constant — a `hidden group-hover:flex` version made every
+│                               header grow on hover (owner screenshot, same day);
+│                               e2e tests must HOVER the header before clicking a section
+│                               action (Playwright treats a display:none button as not
+│                               visible); the badge is outside the toggle button and gets
+│                               its own onClick. data-sidebar-section-header / -body
 │                               exist for the e2e that pins this down. FOUR decorated
 │                               versions were built and REJECTED by the owner the SAME DAY,
 │                               in this order: a hairline `border-t` per section ("use
@@ -1477,7 +1517,11 @@ features/
 │                               shared file picker (mode commands | fileHistory | blame).
 │                               Demo: demoBlame synthesises hunks over demoConflictContent
 │                               with the last hunk uncommitted when rev is null
-├── history/FileHistoryPanel  ← DIFF / BLAME pane toggle in the header (segmented pair,
+├── history/FileHistoryPanel  ← EMPTY STATES are SettingEmpty cards (icon tile + title +
+│                               line: "No uncommitted changes", "Nothing changed in this
+│                               commit", "Pick a commit") centred in the diff pane instead
+│                               of a bare sentence (UX audit 2026-09-24);
+│                               DIFF / BLAME pane toggle in the header (segmented pair,
 │                               aria-pressed, aria-labels "Diff view"/"Blame view"; the
 │                               inline/split/word/wrap/whole-file buttons show only in the
 │                               diff pane) and a "WORKING COPY" row (data-working-copy-row,

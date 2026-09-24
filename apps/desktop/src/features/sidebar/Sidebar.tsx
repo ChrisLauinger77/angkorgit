@@ -215,7 +215,11 @@ function Section({
           </span>
           <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         </button>
-        {action && <span className="flex items-center opacity-0 transition-opacity group-hover:opacity-100">{action}</span>}
+        {action && (
+          <span className="flex w-0 items-center overflow-hidden group-hover:w-auto group-focus-within:w-auto">
+            {action}
+          </span>
+        )}
         <Badge
           tone="neutral"
           className="h-4 min-w-4 shrink-0 cursor-pointer justify-center border-transparent bg-foreground/[0.08] px-1.5 text-[10px] leading-none tabular-nums"

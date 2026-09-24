@@ -1153,9 +1153,6 @@ export function WorkingCopyPanel() {
                 >
                   <Minus /> Unstage file
                 </DropdownMenuItem>
-                <DropdownMenuItem destructive onClick={() => requestDiscard(fileMenu.file, true)}>
-                  <Trash2 /> Discard changes…
-                </DropdownMenuItem>
               </>
             ) : (
               <>
@@ -1163,9 +1160,6 @@ export function WorkingCopyPanel() {
                   onClick={() => void run(() => ipc.stageFile(path, fileMenu.file.path), 'Stage failed')}
                 >
                   <Plus /> Stage file
-                </DropdownMenuItem>
-                <DropdownMenuItem destructive onClick={() => requestDiscard(fileMenu.file)}>
-                  <Trash2 /> Discard changes…
                 </DropdownMenuItem>
               </>
             )}
@@ -1235,6 +1229,9 @@ export function WorkingCopyPanel() {
               <Copy /> Copy absolute path
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem destructive onClick={() => requestDiscard(fileMenu.file, fileMenu.staged)}>
+              <Trash2 /> Discard changes…
+            </DropdownMenuItem>
             <DropdownMenuItem
               destructive
               onClick={() => {

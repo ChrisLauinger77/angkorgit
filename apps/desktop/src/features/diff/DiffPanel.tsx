@@ -1,15 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, SlidersHorizontal, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
 import type { CommitFileInfo, FileDiff } from '@angkorgit/core';
 import { aiCapabilities, hasCommittedHistory, hasReviewableText, hashText, locateDiffLine, patchTextOf, PROJECT_REVIEW_FILE } from '@angkorgit/core';
 import {
   Badge,
   Button,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
@@ -39,6 +41,21 @@ import { diffSelectionText } from './diffSelection';
 import { changeBlocks, DiffMinimap, scrollToFraction } from './DiffMinimap';
 
 const LOCATE_HIGHLIGHT_MS = 2500;
+const COMPACT_HEADER_WIDTH = 960;
+
+function useCompactHeader(ref: React.RefObject<HTMLElement>): boolean {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setCompact(el.clientWidth < COMPACT_HEADER_WIDTH);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return compact;
+}
 
 const FILE_AI_TITLES: Record<FileAiKind, string> = {
   explain: 'AI explanation',
@@ -73,6 +90,8 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
   const loadedKey = useRef<string | null>(null);
   const requestSeq = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const compact = useCompactHeader(headerRef);
   const [lineMenu, setLineMenu] = useState<{
     x: number;
     y: number;
@@ -389,7 +408,11 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       aria-label={`Diff for ${target.path}`}
     >
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border-subtle bg-surface px-3">
+      <div
+        ref={headerRef}
+        data-diff-header={compact ? 'compact' : 'full'}
+        className="flex h-10 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-border-subtle bg-surface px-3"
+      >
         <Hint
           label={
             <span className="flex items-center gap-1">
@@ -443,48 +466,41 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             <Columns2 className="size-3.5" />
           </Button>
         </Hint>
-        <Hint label={wordDiff ? 'Word diff on' : 'Word diff off'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Toggle word diff"
-            className={cn(wordDiff && 'bg-surface-raised text-primary')}
-            onClick={() => setWordDiff(!wordDiff)}
-          >
-            <WholeWord className="size-3.5" />
-          </Button>
-        </Hint>
-        <Hint
-          label={
-            textDiff && wrapUnavailable(textDiff)
-              ? 'Wrapping is off for large files to keep scrolling smooth'
-              : wrapLines
-                ? 'Lines wrapped — click for horizontal scroll'
-                : 'Wrap long lines'
-          }
-        >
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Toggle line wrapping"
-            disabled={!!textDiff && wrapUnavailable(textDiff)}
-            className={cn(wrapLines && 'bg-surface-raised text-primary')}
-            onClick={() => setWrapLines(!wrapLines)}
-          >
-            <WrapText className="size-3.5" />
-          </Button>
-        </Hint>
-        <Hint label={fullFileDiff ? 'Whole file shown — click for changes only' : 'Show whole file'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Toggle whole file view"
-            className={cn(fullFileDiff && 'bg-surface-raised text-primary')}
-            onClick={() => setFullFileDiff(!fullFileDiff)}
-          >
-            <FileText className="size-3.5" />
-          </Button>
-        </Hint>
+        <DropdownMenu>
+          <Hint label="View options">
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="View options"
+                className={cn((wordDiff || wrapLines || fullFileDiff) && 'text-primary')}
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Hint>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>View options</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem checked={wordDiff} onCheckedChange={(v) => setWordDiff(v === true)}>
+              <WholeWord /> Word diff
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={wrapLines}
+              disabled={!!textDiff && wrapUnavailable(textDiff)}
+              onCheckedChange={(v) => setWrapLines(v === true)}
+            >
+              <WrapText /> Wrap long lines
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={fullFileDiff} onCheckedChange={(v) => setFullFileDiff(v === true)}>
+              <FileText /> Show whole file
+            </DropdownMenuCheckboxItem>
+            {textDiff && wrapUnavailable(textDiff) && (
+              <p className="max-w-56 px-2 pb-1.5 pt-1 text-[11px] leading-snug text-faint">
+                Wrapping stays off for large files so scrolling keeps up.
+              </p>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Hint label="File history">
           <Button
             variant="ghost"
@@ -576,9 +592,11 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
                 <ChevronDown className="size-4" />
               </Button>
             </Hint>
-            <span className="text-[10px] text-faint">
-              {blocks.length} change{blocks.length === 1 ? '' : 's'}
-            </span>
+            {!compact && (
+              <span className="text-[10px] text-faint">
+                {blocks.length} change{blocks.length === 1 ? '' : 's'}
+              </span>
+            )}
           </>
         )}
         {siblings.length > 1 && fileIndex >= 0 && (
@@ -601,7 +619,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
                 <ChevronLeft className="size-4" />
               </Button>
             </Hint>
-            <span className="text-[10px] tabular-nums text-faint">
+            <span className={cn('text-[10px] tabular-nums text-faint', compact && 'sr-only')}>
               {fileIndex + 1} of {siblings.length}
             </span>
             <Hint
@@ -627,21 +645,27 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
           <>
             <Separator orientation="vertical" className="mx-1 h-4" />
             {target.staged ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void runStage(() => ipc.unstageFile(path, target.path), 'Unstage')}
-              >
-                <Minus className="size-3" /> Unstage file
-              </Button>
+              <Hint label="Unstage file">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  aria-label="Unstage file"
+                  onClick={() => void runStage(() => ipc.unstageFile(path, target.path), 'Unstage')}
+                >
+                  <Minus className="size-3" /> {!compact && 'Unstage file'}
+                </Button>
+              </Hint>
             ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void runStage(() => ipc.stageFile(path, target.path), 'Stage')}
-              >
-                <Plus className="size-3" /> Stage file
-              </Button>
+              <Hint label="Stage file">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  aria-label="Stage file"
+                  onClick={() => void runStage(() => ipc.stageFile(path, target.path), 'Stage')}
+                >
+                  <Plus className="size-3" /> {!compact && 'Stage file'}
+                </Button>
+              </Hint>
             )}
           </>
         )}
