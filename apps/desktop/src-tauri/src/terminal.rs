@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+#[cfg(not(target_os = "windows"))]
+use std::sync::OnceLock;
+use std::sync::{Arc, Mutex};
+#[cfg(not(target_os = "windows"))]
 use std::time::Duration;
 
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -36,9 +39,13 @@ struct TermData {
     data: String,
 }
 
+#[cfg(not(target_os = "windows"))]
 const ENV_MARK: &str = "__ANGKORGIT_ENV__";
+#[cfg(not(target_os = "windows"))]
 const ENV_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+#[cfg(not(target_os = "windows"))]
 const ENV_SKIP: [&str; 6] = ["TERM", "_", "SHLVL", "PWD", "OLDPWD", "TERM_PROGRAM"];
+#[cfg(not(target_os = "windows"))]
 const DEFAULT_UTF8_LOCALE: &str = "en_US.UTF-8";
 
 fn default_shell() -> CommandBuilder {
@@ -91,6 +98,7 @@ fn probe_login_shell_env() -> Option<HashMap<String, String>> {
     Some(parse_marked_env(&captured.stdout))
 }
 
+#[cfg(not(target_os = "windows"))]
 pub(crate) fn parse_marked_env(stdout: &str) -> HashMap<String, String> {
     let Some(start) = stdout.find(ENV_MARK) else {
         return HashMap::new();
@@ -107,11 +115,13 @@ pub(crate) fn parse_marked_env(stdout: &str) -> HashMap<String, String> {
         .collect()
 }
 
+#[cfg(not(target_os = "windows"))]
 pub(crate) fn is_utf8_locale(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
     lower.ends_with(".utf-8") || lower.ends_with(".utf8")
 }
 
+#[cfg(not(target_os = "windows"))]
 pub(crate) fn utf8_locale(current: Option<&str>) -> String {
     let value = current.map(str::trim).unwrap_or("");
     if value.is_empty() || value.eq_ignore_ascii_case("c") || value.eq_ignore_ascii_case("posix") {
@@ -235,7 +245,7 @@ pub fn kill(state: &TerminalSessions, id: u32) -> AppResult<()> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "windows")))]
 mod tests {
     use super::*;
 

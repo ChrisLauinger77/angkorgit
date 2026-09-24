@@ -232,7 +232,7 @@ terminal.rs           ← real PTY per session (portable-pty), events term-data-
                         the same way, TERM=xterm-256color and COLORTERM=truecolor; a
                         Dock-launched app has no .zprofile PATH and zsh picks MULTIBYTE
                         from the locale it is exec'd with, which was the CJK-as-U+FFFD
-                        report; 3 module tests; the probe is unix-only
+                        report; 3 module tests; the probe, its constants, helpers, the OnceLock/Duration imports AND the test module are all `cfg(not(target_os = "windows"))` — the first push failed the Windows clippy job with eight dead-code errors (G41, 2026-09-24)
 watcher.rs            ← notify-debouncer-mini (400ms) → "repo-changed" event;
                         filters .git noise, keeps HEAD/index/refs/packed-refs, skips *.lock
 http.rs               ← AI/HTTP proxy (reqwest, rustls) — keeps CORS + keys out of webview
