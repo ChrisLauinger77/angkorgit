@@ -59,6 +59,7 @@ import {
 } from '@angkorgit/design-system';
 import { ipc, openExternal } from '@/core/ipc';
 import { confirmDialog } from '@/components/confirm';
+import { EmptyCard } from '@/components/EmptyCard';
 import { useRepo } from '@/features/repository/store';
 import { useGraph } from '@/features/graph/store';
 import { useUi } from '@/features/ui/store';
@@ -138,32 +139,6 @@ const outcomeOk = (result: unknown) => {
 
 const FLAT_FILTER_CAP = 300;
 
-function SidebarEmpty({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="mx-1 mb-1 mt-0.5 flex flex-col gap-2 rounded-lg border border-dashed border-border-subtle bg-surface-raised/40 p-3">
-      <div className="flex items-start gap-2.5">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary [&_svg]:size-3.5">
-          {icon}
-        </span>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs font-medium text-foreground">{title}</span>
-          <span className="text-[11px] leading-relaxed text-muted">{description}</span>
-        </span>
-      </div>
-      {action}
-    </div>
-  );
-}
 
 export const SIDEBAR_SECTIONS = [
   'branches',
@@ -979,7 +954,7 @@ export function Sidebar() {
             </div>
           )}
           {!repoRefreshing && worktrees.length <= 1 && (
-            <SidebarEmpty
+            <EmptyCard
               icon={<FolderTree />}
               title="Two branches, two folders"
               description="Fix a bug or run an agent beside your work. No stashing."
@@ -1113,7 +1088,7 @@ export function Sidebar() {
           }
         >
           {remotes.length === 0 && !hasRemoteBranches && !repoRefreshing && (
-            <SidebarEmpty
+            <EmptyCard
               icon={<Cloud />}
               title="No remotes"
               description="This repository lives only on this machine. Add a remote to push, pull and open pull requests."
@@ -1151,7 +1126,7 @@ export function Sidebar() {
           }
         >
           {tags.length === 0 && !repoRefreshing && (
-            <SidebarEmpty
+            <EmptyCard
               icon={<TagIcon />}
               title="No tags yet"
               description="Mark releases and milestones so they stand out in the graph."
@@ -1210,7 +1185,7 @@ export function Sidebar() {
           }
         >
           {stashes.length === 0 && !repoRefreshing && (
-            <SidebarEmpty
+            <EmptyCard
               icon={<Archive />}
               title="Nothing stashed"
               description="Set changes aside without committing, then pop them back later."

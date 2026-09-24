@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import {
   ArchiveRestore,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   Cloud,
   Code,
@@ -56,6 +55,8 @@ import { useSettings } from '@/features/settings/store';
 import { openInEditor, preferredEditor, useEditors } from '@/features/settings/editors';
 import { aiConfigured, getAiProvider } from '@/features/ai/client';
 import { AiResultPanel } from '@/features/ai/AiResultPanel';
+import { ChangeMark } from '@/components/ChangeMark';
+import { DirName } from '@/components/DirName';
 import { EXPLAIN_WAIT_MESSAGES, REVIEW_WAIT_MESSAGES } from '@/features/ai/waitMessages';
 import { commitReviewKeyFor, explainKeyFor, useAiWork } from '@/features/ai/workStore';
 import { Avatar } from '@/components/Avatar';
@@ -68,7 +69,7 @@ import {
   type FileTreeFold,
   type FileTreeFoldState,
 } from '@/components/FileTree';
-import { basename, dirname, formatDate, isMac, timeAgo } from '@/shared/utils';
+import { basename, formatDate, isMac, timeAgo } from '@/shared/utils';
 
 const DESCRIPTION_MIN = 72;
 const DESCRIPTION_MAX = 360;
@@ -479,7 +480,7 @@ export function CommitDetails({
         <div
           data-active-file={active || undefined}
           className={cn(
-            'group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+            'group flex w-full items-center gap-2 rounded-md py-1.5 pl-2 pr-3 text-left text-xs transition-colors',
             active ? 'bg-primary/10 text-foreground' : 'hover:bg-surface-raised',
             stash && picked.has(diff.path) && !active && 'bg-primary/5',
           )}
@@ -521,18 +522,15 @@ export function CommitDetails({
             else openCenterDiff({ path: diff.path, oid: diffOid, oldPath: diff.oldPath });
           }}
         >
-          <Badge tone={meta?.tone ?? 'neutral'} className="w-5 shrink-0 justify-center px-0 font-mono">
+          <ChangeMark tone={meta?.tone ?? 'neutral'} title={meta?.label}>
             {meta?.mark ?? '?'}
-          </Badge>
+          </ChangeMark>
           <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
             <span className="max-w-full shrink-0 truncate">{basename(diff.path)}</span>
-            {!fileTree && dirname(diff.path) && (
-              <span className="min-w-0 flex-1 truncate text-[11px] text-faint">{dirname(diff.path)}</span>
-            )}
+            {!fileTree && <DirName path={diff.path} className="text-[11px]" />}
           </span>
           {diff.additions > 0 && <span className="shrink-0 font-mono text-[11px] text-success">+{diff.additions}</span>}
           {diff.deletions > 0 && <span className="shrink-0 font-mono text-[11px] text-danger">−{diff.deletions}</span>}
-          <ChevronRight className={cn('size-3.5 shrink-0 text-faint transition-transform', active && 'rotate-90')} />
         </button>
         {stash && (
           <Button
@@ -558,7 +556,7 @@ export function CommitDetails({
           data-active-file={active || undefined}
           data-unchanged-file
           className={cn(
-            'group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+            'group flex w-full items-center gap-2 rounded-md py-1.5 pl-2 pr-3 text-left text-xs transition-colors',
             active ? 'bg-primary/10 text-foreground' : 'text-muted hover:bg-surface-raised',
           )}
           style={fileTree && depth !== undefined ? { paddingLeft: treeIndent(depth) } : undefined}
@@ -575,11 +573,10 @@ export function CommitDetails({
               else openCenterDiff({ path: file, oid: commit.oid, unchanged: true });
             }}
           >
-            <span className="flex w-5 shrink-0 justify-center">
+            <span className="flex w-4 shrink-0 justify-center">
               <FileIcon className="size-3.5 text-faint" />
             </span>
             <span className="min-w-0 flex-1 truncate">{basename(file)}</span>
-            <ChevronRight className={cn('size-3.5 shrink-0 text-faint transition-transform', active && 'rotate-90')} />
           </button>
         </div>
       </Hint>
@@ -898,7 +895,7 @@ export function CommitDetails({
         onKeyDown={onFilesKeyDown}
         className="rounded-md p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
       >
-        <p className="flex items-center justify-between gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted">
+        <p className="mb-1 flex items-center justify-between gap-2 border-b border-border-subtle px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-muted">
           <span className="shrink-0">
             Files
             {!loading && !error && (

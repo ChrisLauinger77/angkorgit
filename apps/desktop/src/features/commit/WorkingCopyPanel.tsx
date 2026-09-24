@@ -1,13 +1,13 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
-import { AlertTriangle, Archive, Code, Copy, ExternalLink, File as FileIcon, FolderOpen, History, UserRoundSearch, Minus, Pencil, Plus, SearchCheck, Sparkles, Trash2, Undo2 } from 'lucide-react';
+import { AlertTriangle, Archive, Check, Code, Copy, ExternalLink, File as FileIcon, FolderOpen, History, UserRoundSearch, Minus, Pencil, Plus, SearchCheck, Sparkles, SquareCheck, Trash2, Undo2 } from 'lucide-react';
 import type { AllFilesEntry, FileStatus } from '@angkorgit/core';
 import { aiCapabilities, allFiles, buildStagedReviewSignature, filterFiles, foldersWithChanges, hasCommittedHistory, hashText, PROJECT_REVIEW_FILE, joinCommitMessage, splitCommitMessage } from '@angkorgit/core';
 import {
-  Badge,
   Button,
   Checkbox,
+  Kbd,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,22 +36,25 @@ import { abortMergeFlow } from '@/features/repository/merge';
 import { useCommitDraft } from './draftStore';
 import { confirmDialog } from '@/components/confirm';
 import { FileFilterInput } from '@/components/FileFilterInput';
+import { ChangeMark } from '@/components/ChangeMark';
+import { DirName } from '@/components/DirName';
+import { EmptyCard } from '@/components/EmptyCard';
 import { FileTree, treeIndent as sharedTreeIndent, FileTreeFoldButton, INITIAL_FOLD, nextFold, type FileTreeFold, type FileTreeFoldState } from '@/components/FileTree';
-import { basename, dirname, isMac } from '@/shared/utils';
+import { basename, isMac, modKey } from '@/shared/utils';
 
 function statusBadge(kind: string | null) {
   switch (kind) {
     case 'new':
     case 'untracked':
-      return <Badge tone="success">A</Badge>;
+      return <ChangeMark tone="success" title="Added">A</ChangeMark>;
     case 'modified':
-      return <Badge tone="info">M</Badge>;
+      return <ChangeMark tone="info" title="Modified">M</ChangeMark>;
     case 'deleted':
-      return <Badge tone="danger">D</Badge>;
+      return <ChangeMark tone="danger" title="Deleted">D</ChangeMark>;
     case 'renamed':
-      return <Badge tone="primary">R</Badge>;
+      return <ChangeMark tone="primary" title="Renamed">R</ChangeMark>;
     case 'conflicted':
-      return <Badge tone="danger">!</Badge>;
+      return <ChangeMark tone="danger" title="Conflicted">!</ChangeMark>;
     default:
       return null;
   }
@@ -101,9 +104,7 @@ const FileRow = memo(function FileRow({
         {statusBadge(conflicted && !staged ? 'conflicted' : kind)}
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
           <span className="max-w-full shrink-0 truncate text-foreground">{basename(file.path)}</span>
-          {!treeMode && dirname(file.path) && (
-            <span className="min-w-0 flex-1 truncate text-faint">{dirname(file.path)}</span>
-          )}
+          {!treeMode && <DirName path={file.path} />}
         </span>
         {onDiscard && (
           <Button
@@ -137,8 +138,7 @@ const COMMIT_BOX_MIN = 72;
 const COMMIT_BOX_AUTO_MAX = 260;
 const COMMIT_BOX_MAX = 600;
 
-const UNSTAGED_ROW_HEIGHT = 36;
-const STAGED_ROW_HEIGHT = 30;
+const FILE_ROW_HEIGHT = 32;
 
 function VirtualFileList({
   files,
@@ -627,6 +627,8 @@ export function WorkingCopyPanel() {
     }
   };
 
+  const cleanTree = status !== null && files.length === 0 && conflicts.length === 0 && !filtering;
+
   const stopReview = () => {
     if (path) useAiWork.getState().stopReview(path);
   };
@@ -673,8 +675,7 @@ export function WorkingCopyPanel() {
     };
   });
 
-  const unstagedRowHeight = useCallback(() => UNSTAGED_ROW_HEIGHT, []);
-  const stagedRowHeight = useCallback(() => STAGED_ROW_HEIGHT, []);
+  const fileRowHeight = useCallback(() => FILE_ROW_HEIGHT, []);
 
   const visibleOrder = useMemo(
     () =>
@@ -863,7 +864,7 @@ export function WorkingCopyPanel() {
         }}
       >
         {changedFiles.length > 0 && <span className="size-4 shrink-0" />}
-        <span className="flex w-7 shrink-0 justify-center">
+        <span className="flex w-4 shrink-0 justify-center">
           <FileIcon className="size-3.5 text-faint" />
         </span>
         <span className="min-w-0 flex-1 truncate">{basename(file)}</span>
@@ -913,6 +914,23 @@ export function WorkingCopyPanel() {
           </div>
         ) : (
         <>
+        {cleanTree ? (
+          <EmptyCard
+            tone="success"
+            icon={<Check />}
+            title="Working tree clean"
+            description="Nothing to commit. Edits you make show up here."
+            className="mt-1"
+            action={
+              !amend && repo?.state !== 'merge' ? (
+                <Button variant="ghost" size="sm" className="-mb-1 self-start text-muted" onClick={() => setAmend(true)}>
+                  <Undo2 className="size-3" /> Amend last commit…
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+        <>
         {conflicts.length > 0 && (
           <>
             <div className="mb-1 flex items-center justify-between px-2">
@@ -935,10 +953,10 @@ export function WorkingCopyPanel() {
                   className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-danger/10"
                   onClick={() => openConflict(file)}
                 >
-                  <Badge tone="danger" className="w-5 shrink-0 justify-center px-0 font-mono">!</Badge>
+                  <ChangeMark tone="danger" title="Conflicted">!</ChangeMark>
                   <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
                     <span className="max-w-full shrink-0 truncate font-medium text-foreground">{basename(file)}</span>
-                    {dirname(file) && <span className="min-w-0 flex-1 truncate text-[11px] text-faint">{dirname(file)}</span>}
+                    <DirName path={file} className="text-[11px]" />
                   </span>
                   <span className="shrink-0 text-[11px] text-danger opacity-0 transition-opacity group-hover:opacity-100">Resolve</span>
                 </button>
@@ -1050,11 +1068,14 @@ export function WorkingCopyPanel() {
           <VirtualFileList
             files={unstagedFiles}
             scrollRef={listScrollRef}
-            rowHeight={unstagedRowHeight}
+            rowHeight={fileRowHeight}
             renderRow={renderUnstaged}
           />
         )}
-        <div className="mb-1 mt-3 flex items-center justify-between px-2">
+        <div
+          data-staged-header
+          className="mb-1 mt-3 flex items-center justify-between border-t border-border-subtle px-2 pt-3"
+        >
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
             Staged {countLabel(stagedFiles.length, allStaged.length)}
           </span>
@@ -1093,11 +1114,16 @@ export function WorkingCopyPanel() {
             </span>
           )}
         </div>
-        {stagedFiles.length === 0 && (
-          <p className="px-2 pb-2 text-xs text-faint">
-            {filtering && allStaged.length > 0 ? 'No staged files match the filter.' : 'Nothing staged yet.'}
-          </p>
-        )}
+        {stagedFiles.length === 0 &&
+          (filtering && allStaged.length > 0 ? (
+            <p className="px-2 pb-2 text-xs text-faint">No staged files match the filter.</p>
+          ) : (
+            <EmptyCard
+              icon={<SquareCheck />}
+              title="Nothing staged"
+              description="Tick a file above, or Stage all, to put it in the next commit."
+            />
+          ))}
         {fileTree ? (
           <FileTree
             items={stagedFiles}
@@ -1110,11 +1136,13 @@ export function WorkingCopyPanel() {
           <VirtualFileList
             files={stagedFiles}
             scrollRef={listScrollRef}
-            rowHeight={stagedRowHeight}
+            rowHeight={fileRowHeight}
             renderRow={renderStaged}
           />
         )}
           </>
+        )}
+        </>
         )}
         </>
         )}
@@ -1258,13 +1286,7 @@ export function WorkingCopyPanel() {
         </DropdownMenu>
       )}
 
-      {status === null ? null : files.length === 0 && !amend && repo?.state !== 'merge' ? (
-        <div className="shrink-0 border-t border-border-subtle px-3 py-2">
-          <Button variant="ghost" size="sm" className="text-muted" onClick={() => setAmend(true)}>
-            <Undo2 className="size-3" /> Amend last commit…
-          </Button>
-        </div>
-      ) : (
+      {status === null ? null : files.length === 0 && !amend && repo?.state !== 'merge' ? null : (
         <div className="relative shrink-0 border-t border-border-subtle p-3">
           <div
             role="separator"
@@ -1360,7 +1382,7 @@ export function WorkingCopyPanel() {
                   summaryRef.current?.focus();
                 }
               }}
-              placeholder="Description — what changed and why  ·  ⌘⏎ to commit"
+              placeholder="What changed and why"
               aria-label="Commit description"
               className={cn(
                 'min-h-[72px] resize-none rounded-none border-0 bg-transparent px-3 py-2 text-xs leading-relaxed text-foreground shadow-none focus-visible:ring-0 focus-visible:border-0',
@@ -1373,11 +1395,18 @@ export function WorkingCopyPanel() {
               <Checkbox checked={amend} onCheckedChange={(v) => setAmend(v === true)} />
               <Undo2 className="size-3" /> Amend
             </label>
-            <Hint label="Review staged changes with AI before committing">
+            <Hint
+              label={
+                stagedFiles.length === 0
+                  ? 'Stage some changes to review them with AI'
+                  : 'Review staged changes with AI before committing'
+              }
+            >
+              <span className="inline-flex">
               <Button
                 variant="outline"
                 size="sm"
-                disabled={reviewBusy || committing || aiBusy}
+                disabled={reviewBusy || committing || aiBusy || stagedFiles.length === 0}
                 onClick={() => void reviewStaged()}
               >
                 {reviewBusy ? (
@@ -1387,6 +1416,7 @@ export function WorkingCopyPanel() {
                 )}
                 Review
               </Button>
+              </span>
             </Hint>
             {repo?.state === 'merge' && (
               <Hint label="Reset the working copy to the state before the merge started">
@@ -1400,18 +1430,32 @@ export function WorkingCopyPanel() {
                 </Button>
               </Hint>
             )}
-            <Button
-              size="sm"
-              disabled={
-                committing ||
-                (!summary.trim() && !amend) ||
-                (stagedFiles.length === 0 && !amend && repo?.state !== 'merge')
+            <Hint
+              label={
+                <span className="flex items-center gap-1">
+                  {stagedFiles.length === 0 && !amend && repo?.state !== 'merge'
+                    ? 'Stage a file to commit'
+                    : 'Commit'}{' '}
+                  <Kbd>{modKey()}</Kbd>
+                  <Kbd>⏎</Kbd>
+                </span>
               }
-              onClick={() => void commit()}
             >
-              {committing && <Spinner className="text-primary-foreground" />}
-              {amend ? 'Amend commit' : `Commit${stagedFiles.length > 0 ? ` ${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}` : ''}`}
-            </Button>
+              <span className="inline-flex">
+              <Button
+                size="sm"
+                disabled={
+                  committing ||
+                  (!summary.trim() && !amend) ||
+                  (stagedFiles.length === 0 && !amend && repo?.state !== 'merge')
+                }
+                onClick={() => void commit()}
+              >
+                {committing && <Spinner className="text-primary-foreground" />}
+                {amend ? 'Amend commit' : `Commit${stagedFiles.length > 0 ? ` ${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}` : ''}`}
+              </Button>
+              </span>
+            </Hint>
           </div>
         </div>
       )}
