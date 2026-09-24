@@ -20,13 +20,14 @@ import {
   Tag as TagIcon,
   UserRoundSearch,
 } from 'lucide-react';
-import type { AllFilesEntry, CommitFileInfo, CommitInfo, FileDiff } from '@angkorgit/core';
+import type { AllFilesEntry, CommitFileInfo, CommitInfo } from '@angkorgit/core';
 import {
   aiCapabilities,
   allFiles,
   filterFiles,
   foldersWithChanges,
   joinCommitMessage,
+  patchTextOfAll,
   splitCommitMessage,
 } from '@angkorgit/core';
 import {
@@ -136,18 +137,6 @@ function ChangeFilter({
       ))}
     </span>
   );
-}
-
-function diffToText(diffs: FileDiff[]): string {
-  return diffs
-    .map(
-      (d) =>
-        `--- ${d.oldPath ?? d.path}\n+++ ${d.path}\n` +
-        d.hunks
-          .map((h) => `${h.header}\n${h.lines.map((l) => `${l.kind === 'addition' ? '+' : l.kind === 'deletion' ? '-' : ' '}${l.content}`).join('\n')}`)
-          .join('\n'),
-    )
-    .join('\n\n');
 }
 
 function VirtualFileRows({
@@ -612,7 +601,7 @@ export function CommitDetails({
     try {
       const fullDiffs = await ipc.diffCommit(repoPath, commit.oid);
       if (!stillRunning()) return;
-      const text = await aiCapabilities.explainDiff(getAiProvider(), diffToText(fullDiffs));
+      const text = await aiCapabilities.explainDiff(getAiProvider(), patchTextOfAll(fullDiffs));
       if (stillRunning()) useAiWork.getState().setExplain(key, text);
     } catch (error) {
       if (stillRunning()) {

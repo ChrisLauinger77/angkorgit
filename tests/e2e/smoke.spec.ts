@@ -1960,3 +1960,58 @@ test('dragging a diff selection past the bottom edge keeps growing it and copies
   await page.keyboard.press('ControlOrMeta+c');
   await expect.poll(copied).toBe(selected);
 });
+
+test('the diff header reviews and explains a single file with AI', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const chip = page.locator('[data-ai-status]');
+  await chip.click();
+  const settings = page.getByRole('dialog');
+  await settings.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: /Installed AI CLI/ }).click();
+  await settings.getByRole('button', { name: /Claude Code/ }).click();
+  await expect(chip).toHaveText('Claude Code');
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+
+  await page.getByText('ipc.ts', { exact: true }).first().click();
+  const diff = page.locator('section[aria-label="Diff for src/core/ipc.ts"]');
+  await expect(diff).toBeVisible();
+  const aiButton = diff.getByRole('button', { name: 'AI actions' });
+  await expect(aiButton).toBeEnabled();
+  await aiButton.click();
+  await page.getByRole('menuitem', { name: 'Review changes' }).click();
+  const panel = diff.locator('[data-ai-result-panel]');
+  await expect(panel).toHaveAttribute('data-ai-result-panel', 'busy');
+  await expect(panel).toContainText('AI review');
+  await expect(aiButton).toBeDisabled();
+  await expect(panel).toHaveAttribute('data-ai-result-panel', 'done', { timeout: 10_000 });
+  await expect(panel).toContainText('demo response');
+  await expect(aiButton).toBeEnabled();
+
+  await expect(diff.getByRole('button', { name: 'Copy AI review' })).toBeVisible();
+  await diff.getByRole('button', { name: 'Fold the AI review' }).click();
+  await expect(panel).toHaveAttribute('data-ai-folded', 'true');
+  await expect(panel.locator('[data-ai-body]')).toHaveCount(0);
+  await diff.getByRole('button', { name: 'Show the AI review' }).click();
+  await expect(panel.locator('[data-ai-body]')).toContainText('demo response');
+  await diff.getByRole('button', { name: 'Open AI review in full view' }).click();
+  const fullView = page.getByRole('dialog');
+  await expect(fullView).toContainText('demo response');
+  await fullView.getByRole('button', { name: 'Done' }).click();
+  await expect(fullView).toBeHidden();
+
+  await page.keyboard.press('Escape');
+  await expect(diff).toBeHidden();
+  await page.getByText('ipc.ts', { exact: true }).first().click();
+  await expect(diff).toBeVisible();
+  await expect(diff.locator('[data-ai-result-panel]')).toHaveCount(0);
+
+  await aiButton.click();
+  await page.getByRole('menuitem', { name: 'Explain changes' }).click();
+  await expect(diff.locator('[data-ai-result-panel]')).toContainText('AI explanation');
+  await expect(diff.locator('[data-ai-result-panel]')).toHaveAttribute('data-ai-result-panel', 'done', { timeout: 10_000 });
+  await diff.getByRole('button', { name: 'Dismiss AI explanation' }).click();
+  await expect(diff.locator('[data-ai-result-panel]')).toHaveCount(0);
+});

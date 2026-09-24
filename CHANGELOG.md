@@ -6,6 +6,30 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **AI review and explanation for one file.** The diff header has a sparkle button with
+  two actions, Explain changes and Review changes, for the file on screen: a working copy
+  change (staged or unstaged) or a file inside a commit. The answer opens in a strip under
+  the diff header, so the code keeps its full width; fold it to one line with the verdict, or
+  open it in a full view. Every line the AI quotes is a link: click it and the diff scrolls
+  to that line and highlights it. The strip can be stopped while it runs and is dismissed
+  when you leave the file. The AI is told where the file sits and which other files changed with it, so code
+  that moved to another file is not reported as missing. Reviews follow the same conventions
+  as the staged review, including `.angkorgit/review.md`.
+
+### Changed
+- **AI answers are written for reviewers.** Explanations come as What it does, Changes and
+  Worth checking; reviews as Summary, Findings (Bug, Risk or Nit, quoting the exact line,
+  what is wrong, how to fix it) and a Verdict. Both apply to the staged review and the commit
+  explanation too. The answers render as real sections with Bug, Risk and Nit badges and a
+  coloured verdict, in the strip, the staged review card and the full-view dialog alike.
+
+### Fixed
+- **AI answers stopped mid-sentence.** Every provider was capped at 1024 output tokens, and
+  models that reason before answering (Gemini 2.5 among them) spent most of that budget
+  before writing. Explanations, reviews, PR descriptions and summaries now get a 4096-token
+  budget; commit messages keep the short one.
+
 ## [0.17.0] — 2026-09-22
 
 The whole-tree release. The inspector can show every file at a commit, not only the

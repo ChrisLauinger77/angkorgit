@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
-import { AlertTriangle, Archive, Code, Copy, ExternalLink, File as FileIcon, FolderOpen, History, UserRoundSearch, Maximize2, Minus, Pencil, Plus, SearchCheck, Sparkles, Trash2, Undo2, X } from 'lucide-react';
+import { AlertTriangle, Archive, Code, Copy, ExternalLink, File as FileIcon, FolderOpen, History, UserRoundSearch, Minus, Pencil, Plus, SearchCheck, Sparkles, Trash2, Undo2 } from 'lucide-react';
 import type { AllFilesEntry, FileStatus } from '@angkorgit/core';
 import { aiCapabilities, allFiles, buildStagedReviewSignature, filterFiles, foldersWithChanges, hasCommittedHistory, hashText, PROJECT_REVIEW_FILE, joinCommitMessage, splitCommitMessage } from '@angkorgit/core';
 import {
@@ -25,8 +25,8 @@ import { useRepo } from '@/features/repository/store';
 import { useGraph } from '@/features/graph/store';
 import { focusRequests, useUi } from '@/features/ui/store';
 import { aiConfigured, getAiProvider } from '@/features/ai/client';
-import { AiText } from '@/features/ai/AiText';
-import { AiResultDialog } from '@/features/ai/AiResultDialog';
+import { AiResultPanel } from '@/features/ai/AiResultPanel';
+import { REVIEW_WAIT_MESSAGES } from '@/features/ai/waitMessages';
 import { useAiWork } from '@/features/ai/workStore';
 import { useSettings } from '@/features/settings/store';
 import { ensureRepoProfile } from '@/features/settings/profiles';
@@ -137,15 +137,6 @@ const COMMIT_BOX_MIN = 72;
 const COMMIT_BOX_AUTO_MAX = 260;
 const COMMIT_BOX_MAX = 600;
 
-const REVIEW_WAIT_MESSAGES = [
-  'Reading your staged changes…',
-  'Thinking through edge cases…',
-  'Hunting for bugs…',
-  'Checking your conventions…',
-  'Looking for missing tests…',
-  'Polishing the feedback…',
-];
-
 const UNSTAGED_ROW_HEIGHT = 36;
 const STAGED_ROW_HEIGHT = 30;
 
@@ -254,8 +245,6 @@ export function WorkingCopyPanel() {
   const [committing, setCommitting] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const aiRunRef = useRef(0);
-  const [reviewExpanded, setReviewExpanded] = useState(false);
-  const [waitIndex, setWaitIndex] = useState(0);
   const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: FileStatus; staged: boolean } | null>(null);
   const [multi, setMulti] = useState<{ staged: boolean; paths: string[] } | null>(null);
   const messageRef = useRef<HTMLTextAreaElement | null>(null);
@@ -359,17 +348,6 @@ export function WorkingCopyPanel() {
       useAiWork.getState().setReview(path, null);
     }
   }, [review, path, stagedSignature]);
-
-  useEffect(() => {
-    if (!reviewCurrent) setReviewExpanded(false);
-  }, [reviewCurrent]);
-
-  useEffect(() => {
-    if (!reviewBusy) return;
-    setWaitIndex(Math.floor(Math.random() * REVIEW_WAIT_MESSAGES.length));
-    const timer = setInterval(() => setWaitIndex((i) => i + 1), 6000);
-    return () => clearInterval(timer);
-  }, [reviewBusy]);
 
   useEffect(() => {
     if (!reviewCurrent || !review) return;
@@ -1309,65 +1287,17 @@ export function WorkingCopyPanel() {
               )}
             />
           </div>
-          {reviewBusy && (
-            <div className="mb-2 rounded-md border border-primary/30 bg-primary/5 text-xs leading-relaxed">
-              <div className="flex items-center justify-between pl-3 pr-1.5 pt-1.5">
-                <span className="flex items-center gap-1.5 font-medium text-primary">
-                  <SearchCheck className="size-3.5" /> AI review
-                </span>
-                <Hint label="Stop the review">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Stop the AI review"
-                    onClick={stopReview}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </Hint>
-              </div>
-              <div className="flex items-center gap-2.5 px-3 pb-2.5 pt-1.5 text-muted">
-                <Logo size={18} animated="loop" className="logo-draw-loop shrink-0" />
-                <span key={waitIndex} className="animate-fade-in">
-                  {REVIEW_WAIT_MESSAGES[waitIndex % REVIEW_WAIT_MESSAGES.length]}
-                </span>
-              </div>
-            </div>
-          )}
-          {!reviewBusy && review && reviewCurrent && (
-            <div className="mb-2 rounded-md border border-primary/30 bg-primary/5 text-xs leading-relaxed">
-              <div className="flex items-center justify-between pl-3 pr-1.5 pt-1.5">
-                <span className="flex items-center gap-1.5 font-medium text-primary">
-                  <SearchCheck className="size-3.5" /> AI review
-                </span>
-                <span className="flex items-center">
-                  <Hint label="Open review in full view">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Open AI review in full view"
-                      onClick={() => setReviewExpanded(true)}
-                    >
-                      <Maximize2 className="size-3" />
-                    </Button>
-                  </Hint>
-                  <Hint label="Dismiss review">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Dismiss AI review"
-                      onClick={() => useAiWork.getState().setReview(path, null)}
-                    >
-                      <X className="size-3" />
-                    </Button>
-                  </Hint>
-                </span>
-              </div>
-              <div className="max-h-56 overflow-y-auto px-3 pb-2.5 pt-1">
-                <AiText text={review.text} />
-              </div>
-            </div>
-          )}
+          <AiResultPanel
+            title="AI review"
+            icon={<SearchCheck className="size-3.5" />}
+            busy={reviewBusy}
+            waitMessages={REVIEW_WAIT_MESSAGES}
+            text={review && reviewCurrent ? review.text : null}
+            onStop={stopReview}
+            onDismiss={() => useAiWork.getState().setReview(path, null)}
+            className="mb-2"
+            bodyClassName="max-h-56"
+          />
           <div
             className={cn(
               'rounded-md border border-border bg-surface shadow-sm transition-colors',
@@ -1488,14 +1418,6 @@ export function WorkingCopyPanel() {
           </div>
         </div>
       )}
-
-      <AiResultDialog
-        open={reviewExpanded && !!review && reviewCurrent}
-        onOpenChange={(open) => !open && setReviewExpanded(false)}
-        title="AI review"
-        icon={<SearchCheck className="size-4 text-primary" />}
-        text={review?.text ?? ''}
-      />
     </div>
   );
 }

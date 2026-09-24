@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
 import type { CommitFileInfo, FileDiff } from '@angkorgit/core';
-import { hasCommittedHistory } from '@angkorgit/core';
+import { aiCapabilities, hasCommittedHistory, hasReviewableText, hashText, locateDiffLine, patchTextOf, PROJECT_REVIEW_FILE } from '@angkorgit/core';
 import {
   Badge,
   Button,
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   Kbd,
+  Logo,
   Separator,
   Spinner,
   cn,
@@ -22,15 +23,31 @@ import { confirmDialog } from '@/components/confirm';
 import type { LineMenuInfo } from './VirtualDiff';
 import { ipc } from '@/core/ipc';
 import { useRepo } from '@/features/repository/store';
+import { useSettings } from '@/features/settings/store';
+import { aiConfigured, getAiProvider } from '@/features/ai/client';
+import { DiffAiStrip } from './DiffAiStrip';
+import { EXPLAIN_WAIT_MESSAGES, REVIEW_WAIT_MESSAGES } from '@/features/ai/waitMessages';
+import { fileAiKeyFor, useAiWork, type FileAiKind } from '@/features/ai/workStore';
 import { useShortcuts } from '@/shared/useShortcuts';
 import { captureSelectionRanges, useKeepSelection } from '@/shared/useKeepSelection';
 import { useUi, type CenterDiffTarget } from '@/features/ui/store';
 import { DiffViewer } from './DiffViewer';
-import { wrapUnavailable } from './diffShared';
-import { useDiffFind } from './diffSearch';
+import { wrapUnavailable, type SearchRanges } from './diffShared';
+import { scrollDiffToLine, useDiffFind } from './diffSearch';
 import { useDiffSelectAll } from './diffCopy';
 import { diffSelectionText } from './diffSelection';
 import { changeBlocks, DiffMinimap, scrollToFraction } from './DiffMinimap';
+
+const LOCATE_HIGHLIGHT_MS = 2500;
+
+const FILE_AI_TITLES: Record<FileAiKind, string> = {
+  explain: 'AI explanation',
+  review: 'AI review',
+};
+
+function fileAiIcon(kind: FileAiKind, className: string) {
+  return kind === 'review' ? <SearchCheck className={className} /> : <Sparkles className={className} />;
+}
 
 export function DiffPanel({ target }: { target: CenterDiffTarget }) {
   const repo = useRepo((s) => s.repo);
@@ -66,10 +83,33 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
   useKeepSelection(lineMenu?.ranges ?? null);
   const textDiff = diff && !diff.isBinary && !diff.isImage ? diff : null;
   const { findBar, search } = useDiffFind(textDiff, scrollRef);
+  const [located, setLocated] = useState<SearchRanges | undefined>(undefined);
+  const locateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlight = search ?? located;
   const { selectAllOverlay, selectSide } = useDiffSelectAll(textDiff, scrollRef);
 
   const path = repo?.path ?? '';
   const isWorkingCopy = target.oid === undefined;
+  const aiKey = fileAiKeyFor(path, target);
+  const aiResult = useAiWork((s) => s.fileAi[aiKey] ?? null);
+  const aiBusyKind = useAiWork((s) => s.fileAiBusy[aiKey] ?? null);
+  const diffRef = useRef<FileDiff | null>(null);
+  diffRef.current = diff;
+
+  const fetchDiff = async (contextLines?: number): Promise<FileDiff | null> => {
+    if (target.unchanged) return ipc.fileContents(path, target.path, target.oid ?? null);
+    if (target.oid) {
+      const result = await ipc.commitFileDiff(path, target.oid, target.path, target.oldPath ?? null, contextLines);
+      const untouched =
+        result.hunks.length === 0 &&
+        result.additions === 0 &&
+        result.deletions === 0 &&
+        !result.isBinary &&
+        !result.isImage;
+      return untouched ? null : result;
+    }
+    return ipc.diffFile(path, target.path, target.staged ?? false, contextLines);
+  };
   const [commitFileList, setCommitFileList] = useState<CommitFileInfo[]>([]);
   const commitFiles = useMemo(() => commitFileList.map((f) => f.path), [commitFileList]);
 
@@ -202,28 +242,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     const seq = ++requestSeq.current;
     const key = `${path}|${target.path}|${target.oid ?? ''}|${target.staged ?? false}|${target.unchanged ?? false}|${fullFileDiff}|${reloadToken}`;
     if (loadedKey.current !== key) setLoading(true);
-    const context = fullFileDiff ? 10_000_000 : undefined;
-    const load = async (): Promise<FileDiff | null> => {
-      if (target.unchanged) return ipc.fileContents(path, target.path, target.oid ?? null);
-      if (target.oid) {
-        const result = await ipc.commitFileDiff(
-          path,
-          target.oid,
-          target.path,
-          target.oldPath ?? null,
-          context,
-        );
-        const untouched =
-          result.hunks.length === 0 &&
-          result.additions === 0 &&
-          result.deletions === 0 &&
-          !result.isBinary &&
-          !result.isImage;
-        return untouched ? null : result;
-      }
-      return ipc.diffFile(path, target.path, target.staged ?? false, context);
-    };
-    void load()
+    void fetchDiff(fullFileDiff ? 10_000_000 : undefined)
       .then((result) => {
         if (!cancelled && seq === requestSeq.current) {
           setDiff(result);
@@ -246,6 +265,112 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, target.path, target.oid, target.staged, target.unchanged, fullFileDiff, reloadToken, statusSignature]);
+
+  useEffect(
+    () => () => {
+      const work = useAiWork.getState();
+      work.stopFileAi(aiKey);
+      work.setFileAi(aiKey, null);
+    },
+    [aiKey],
+  );
+
+  const compactPatchHash = !fullFileDiff && !loading && hasReviewableText(diff) ? hashText(patchTextOf(diff)) : null;
+
+  useEffect(() => {
+    if (!aiResult || compactPatchHash === null) return;
+    if (aiResult.patchHash !== compactPatchHash) useAiWork.getState().setFileAi(aiKey, null);
+  }, [aiResult, compactPatchHash, aiKey]);
+
+  const aiAvailable = !loading && !target.unchanged && hasReviewableText(diff);
+
+  const runFileAi = async (kind: FileAiKind) => {
+    if (!aiConfigured()) {
+      toast.info('Configure an AI provider in Settings first');
+      return;
+    }
+    const key = aiKey;
+    const file = target.path;
+    const run = useAiWork.getState().startFileAi(key, kind);
+    const stillRunning = () => useAiWork.getState().isFileAiRun(key, run);
+    try {
+      const source = !fullFileDiff && diff ? diff : await fetchDiff();
+      if (!stillRunning()) return;
+      if (!hasReviewableText(source)) {
+        toast.info('This file has no text changes to send');
+        return;
+      }
+      const patch = patchTextOf(source);
+      const location: aiCapabilities.FileChangeLocation = target.oid
+        ? {
+            kind: 'commit',
+            oid: target.oid,
+            summary: await ipc
+              .commitInfo(path, target.oid)
+              .then((info) => info.summary)
+              .catch(() => ''),
+          }
+        : { kind: 'working-copy', staged: target.staged ?? false };
+      if (!stillRunning()) return;
+      const changeContext = { file, location, otherFiles: siblings };
+      let text: string;
+      if (kind === 'review') {
+        const projectInstructions = await ipc.readFile(path, PROJECT_REVIEW_FILE).catch((error) => {
+          if (stillRunning() && (error as { code?: string } | null)?.code !== 'not_found') {
+            toast.warning(`Could not read ${PROJECT_REVIEW_FILE} — reviewing without project conventions`);
+          }
+          return '';
+        });
+        text = await aiCapabilities.reviewFileChanges(getAiProvider(), patch, {
+          ...changeContext,
+          instructions: useSettings.getState().aiStyle.review.instructions,
+          projectInstructions,
+        });
+      } else {
+        text = await aiCapabilities.explainFileChanges(getAiProvider(), patch, changeContext);
+      }
+      if (!stillRunning()) return;
+      if (!text) {
+        toast.error('The AI provider returned an empty answer — try again or check the model in Settings');
+        return;
+      }
+      const current = diffRef.current;
+      if (!fullFileDiff && hasReviewableText(current) && hashText(patchTextOf(current)) !== hashText(patch)) {
+        toast.info(`${file} changed while the AI was working — run it again`);
+        return;
+      }
+      useAiWork.getState().setFileAi(key, { kind, patchHash: hashText(patch), text });
+    } catch (error) {
+      if (stillRunning()) {
+        toast.error(`AI request failed: ${(error as { message?: string } | null)?.message ?? String(error)}`);
+      }
+    } finally {
+      useAiWork.getState().endFileAi(key, run);
+    }
+  };
+
+  const shownAiKind = aiBusyKind ?? aiResult?.kind ?? null;
+
+  const locateSnippet = (snippet: string) => {
+    const el = scrollRef.current;
+    if (!diff || !el) return;
+    const hit = locateDiffLine(diff, snippet);
+    if (!hit) {
+      toast.info('That line is not part of this diff');
+      return;
+    }
+    setLocated(new Map([[hit.line, [{ start: hit.start, end: hit.end, current: true }]]]));
+    scrollDiffToLine(el, diff, hit.line, diffView === 'split', wrapLines);
+    if (locateTimer.current) clearTimeout(locateTimer.current);
+    locateTimer.current = setTimeout(() => setLocated(undefined), LOCATE_HIGHLIGHT_MS);
+  };
+
+  useEffect(() => {
+    setLocated(undefined);
+    return () => {
+      if (locateTimer.current) clearTimeout(locateTimer.current);
+    };
+  }, [diff]);
 
   const runStage = async (op: () => Promise<unknown>, label: string) => {
     try {
@@ -389,6 +514,43 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             <UserRoundSearch className="size-3.5" />
           </Button>
         </Hint>
+        <DropdownMenu>
+          <Hint
+            label={
+              aiBusyKind
+                ? aiBusyKind === 'review'
+                  ? 'Reviewing with AI…'
+                  : 'Explaining with AI…'
+                : aiAvailable
+                  ? 'Explain or review with AI'
+                  : 'No text changes to explain or review'
+            }
+          >
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="AI actions"
+                disabled={!aiAvailable || !!aiBusyKind}
+                className={cn(aiResult && !aiBusyKind && 'text-primary')}
+              >
+                {aiBusyKind ? (
+                  <Logo size={14} animated="loop" className="logo-draw-loop" />
+                ) : (
+                  <Sparkles className="size-3.5" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+          </Hint>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => void runFileAi('explain')}>
+              <Sparkles /> Explain changes
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void runFileAi('review')}>
+              <SearchCheck /> Review changes
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {blocks.length > 0 && (
           <>
             <Separator orientation="vertical" className="mx-1 h-4" />
@@ -485,6 +647,20 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
         )}
       </div>
 
+      {shownAiKind && (
+        <DiffAiStrip
+          title={FILE_AI_TITLES[shownAiKind]}
+          icon={fileAiIcon(shownAiKind, 'size-3.5')}
+          busy={!!aiBusyKind}
+          waitMessages={shownAiKind === 'review' ? REVIEW_WAIT_MESSAGES : EXPLAIN_WAIT_MESSAGES}
+          text={aiResult?.text ?? null}
+          diff={textDiff}
+          onStop={() => useAiWork.getState().stopFileAi(aiKey)}
+          onDismiss={() => useAiWork.getState().setFileAi(aiKey, null)}
+          onLocate={locateSnippet}
+        />
+      )}
+
       <div className="relative flex min-h-0 flex-1">
         {findBar}
         {selectAllOverlay}
@@ -512,7 +688,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             <DiffViewer
             diff={diff}
             scrollRef={scrollRef}
-            search={search}
+            search={highlight}
             onLineContextMenu={(e, info) => {
               e.preventDefault();
               setLineMenu({
