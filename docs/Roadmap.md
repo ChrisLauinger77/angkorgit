@@ -1,10 +1,10 @@
 # Roadmap
 
-Updated for v0.17.0 (September 2026). [CHANGELOG.md](../CHANGELOG.md) is the
+Updated for v0.18.0 (September 2026). [CHANGELOG.md](../CHANGELOG.md) is the
 authoritative record of what shipped in each release; this file tracks
 direction.
 
-## Shipped (0.1.0 → 0.17.0)
+## Shipped (0.1.0 → 0.18.0)
 
 - [x] Repository: open, clone (with progress), recents, search, repository tabs (drag to reorder)
 - [x] Commit: stage files, hunks, and individual lines; unstage, commit, amend; per-repo commit drafts; multi-select in the working copy with bulk stage/unstage/stash/discard; discard for staged files; path filter over changed files and commit files
@@ -18,7 +18,7 @@ direction.
 - [x] Diff: inline & side-by-side, syntax highlight, word diff, image diff, find in diff (⌘F), minimap, previous/next change and file navigation (N/P, [/]), opens directly at the first change (no scroll animation), reloads live as the file changes on disk, file history one click from the header; → / ↑ ↓ / ← walk from the graph into a commit's files and back
 - [x] Settings: sixteen themes (Angkor Dusk default) with accents & zoom, identity profiles (repo-local) with linked accounts, SSH key management & generation, hosting accounts with verified tokens (Secret Service on Linux, missing tokens flagged), AI providers & commit style, keyboard reference
 - [x] Sidebar: accordion sections with pinned headers and collapse-all, row menus on hover and right-click everywhere, empty-state cards; graph display options and column headers; welcome page with keyboard navigation and missing-folder detection
-- [x] AI: provider-agnostic (OpenAI, Anthropic, Gemini, Ollama, LM Studio) plus installed AI CLIs (Claude Code, GitHub Copilot CLI, Codex, Gemini CLI, OpenCode, Antigravity) — commit messages, diff/conflict explanations, PR descriptions, staged-change review with team conventions (global + per-repo `.angkorgit/review.md`), background execution with stop, full-size reading views
+- [x] AI: provider-agnostic (OpenAI, Anthropic, Gemini, Ollama, LM Studio) plus installed AI CLIs (Claude Code, GitHub Copilot CLI, Codex, Gemini CLI, OpenCode, Antigravity) — commit messages, diff/conflict explanations, PR descriptions, review of the staged changes, of one file from its diff, or of a whole commit, with team conventions (global + per-repo `.angkorgit/review.md`), structured answers (findings by severity, verdict, quoted lines that jump to the code), background execution with stop, full-size reading views
 - [x] Undo/redo for recent operations; drag-and-drop merge/rebase
 - [x] Auto-update: pull-based from GitHub releases, signature-verified
 - [x] Commit signing: SSH and GPG, driven by existing git config (commit.gpgSign, gpg.format, user.signingKey) — covers commit, amend, merge

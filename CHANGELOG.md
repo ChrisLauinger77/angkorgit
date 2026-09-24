@@ -6,6 +6,14 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-24
+
+The review release. AI can now review one file from its diff or a whole commit from the
+inspector, with findings by severity, a verdict and quoted lines that jump to the code; the
+answers no longer stop mid-sentence. Around it, a pass over the working copy and the commit
+file list, push failures that explain themselves, self-hosted forges on custom domains, and
+an embedded terminal that finally sees your login-shell PATH.
+
 ### Added
 - **AI review and explanation for one file.** The diff header has a sparkle button with
   two actions, Explain changes and Review changes, for the file on screen: a working copy
@@ -1471,7 +1479,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cheat2001/angkorgit/compare/v0.14.0...v0.15.0
