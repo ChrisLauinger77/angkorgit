@@ -13,9 +13,9 @@ import {
   File as FileIcon,
   FolderOpen,
   History,
-  Maximize2,
   Monitor,
   Pencil,
+  SearchCheck,
   Sparkles,
   Tag as TagIcon,
   UserRoundSearch,
@@ -28,6 +28,7 @@ import {
   foldersWithChanges,
   joinCommitMessage,
   patchTextOfAll,
+  PROJECT_REVIEW_FILE,
   splitCommitMessage,
 } from '@angkorgit/core';
 import {
@@ -54,9 +55,9 @@ import { focusRequests, useUi } from '@/features/ui/store';
 import { useSettings } from '@/features/settings/store';
 import { openInEditor, preferredEditor, useEditors } from '@/features/settings/editors';
 import { aiConfigured, getAiProvider } from '@/features/ai/client';
-import { AiText } from '@/features/ai/AiText';
-import { AiResultDialog } from '@/features/ai/AiResultDialog';
-import { explainKeyFor, useAiWork } from '@/features/ai/workStore';
+import { AiResultPanel } from '@/features/ai/AiResultPanel';
+import { EXPLAIN_WAIT_MESSAGES, REVIEW_WAIT_MESSAGES } from '@/features/ai/waitMessages';
+import { commitReviewKeyFor, explainKeyFor, useAiWork } from '@/features/ai/workStore';
 import { Avatar } from '@/components/Avatar';
 import {
   FileTree,
@@ -208,9 +209,11 @@ export function CommitDetails({
   const stash = useRepo((s) => s.stashes.find((entry) => entry.oid === commit.oid) ?? null);
   const refreshStatus = useRepo((s) => s.refreshStatus);
   const explainKey = explainKeyFor(repoPath, commit.oid);
+  const reviewKey = commitReviewKeyFor(repoPath, commit.oid);
   const aiText = useAiWork((s) => s.explains[explainKey] ?? null);
   const aiBusy = useAiWork((s) => !!s.explainBusy[explainKey]);
-  const [aiExpanded, setAiExpanded] = useState(false);
+  const reviewText = useAiWork((s) => s.explains[reviewKey] ?? null);
+  const reviewBusy = useAiWork((s) => !!s.explainBusy[reviewKey]);
   const [bodyExpanded, setBodyExpanded] = useState(false);
   const [fold, setFold] = useState<FileTreeFold>(INITIAL_FOLD);
   const [foldState, setFoldState] = useState<FileTreeFoldState | null>(null);
@@ -586,9 +589,9 @@ export function CommitDetails({
   const renderEntry = (entry: AllFilesEntry<CommitFileInfo>, depth?: number) =>
     entry.change ? renderDiffRow(entry.change, depth) : renderPlainRow(entry.path, depth);
 
-  const explain = async () => {
-    const key = explainKey;
-    if (aiBusy) {
+  const runCommitAi = async (kind: 'explain' | 'review') => {
+    const key = kind === 'review' ? reviewKey : explainKey;
+    if (kind === 'review' ? reviewBusy : aiBusy) {
       useAiWork.getState().stopExplain(key);
       return;
     }
@@ -601,8 +604,34 @@ export function CommitDetails({
     try {
       const fullDiffs = await ipc.diffCommit(repoPath, commit.oid);
       if (!stillRunning()) return;
-      const text = await aiCapabilities.explainDiff(getAiProvider(), patchTextOfAll(fullDiffs));
-      if (stillRunning()) useAiWork.getState().setExplain(key, text);
+      const patch = patchTextOfAll(fullDiffs);
+      if (!patch.trim()) {
+        toast.info('This commit has no text changes to send');
+        return;
+      }
+      const context = { oid: commit.oid, summary: commit.summary, files: fullDiffs.map((d) => d.path) };
+      let text: string;
+      if (kind === 'review') {
+        const projectInstructions = await ipc.readFile(repoPath, PROJECT_REVIEW_FILE).catch((error) => {
+          if (stillRunning() && (error as { code?: string } | null)?.code !== 'not_found') {
+            toast.warning(`Could not read ${PROJECT_REVIEW_FILE} — reviewing without project conventions`);
+          }
+          return '';
+        });
+        text = await aiCapabilities.reviewCommitChanges(getAiProvider(), patch, {
+          ...context,
+          instructions: useSettings.getState().aiStyle.review.instructions,
+          projectInstructions,
+        });
+      } else {
+        text = await aiCapabilities.explainCommitChanges(getAiProvider(), patch, context);
+      }
+      if (!stillRunning()) return;
+      if (!text) {
+        toast.error('The AI provider returned an empty answer — try again or check the model in Settings');
+        return;
+      }
+      useAiWork.getState().setExplain(key, text);
     } catch (error) {
       if (stillRunning()) {
         toast.error(`AI request failed: ${(error as { message?: string } | null)?.message ?? String(error)}`);
@@ -685,16 +714,34 @@ export function CommitDetails({
             </div>
           </div>
         ) : (
-          <h2
-            className={cn(
-              'text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere]',
-              canReword && 'cursor-text',
+          <div className="flex items-start gap-2">
+            <h2
+              className={cn(
+                'min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere]',
+                canReword && 'cursor-text',
+              )}
+              title={canReword ? 'Double-click to edit the message' : undefined}
+              onDoubleClick={startEditing}
+            >
+              {commit.summary}
+            </h2>
+            {!stash && (
+              <Hint label={canReword ? 'Edit the commit message' : 'Already pushed to a remote'}>
+                <span className="-mt-1 inline-flex shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted"
+                    aria-label="Edit commit message"
+                    disabled={!canReword}
+                    onClick={startEditing}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                </span>
+              </Hint>
             )}
-            title={canReword ? 'Double-click to edit the message' : undefined}
-            onDoubleClick={startEditing}
-          >
-            {commit.summary}
-          </h2>
+          </div>
         )}
         {commit.body && !editing && (
           <div className="mt-2">
@@ -778,67 +825,69 @@ export function CommitDetails({
           )}
         </div>
 
-        <div className="mt-2 flex items-center justify-between gap-2">
-          {stash ? (
-            <span />
-          ) : (
-            <Hint label={canReword ? 'Edit the commit message' : 'Already pushed to a remote'}>
-              <span className="inline-flex">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted"
-                  aria-label="Edit commit message"
-                  disabled={!canReword || editing}
-                  onClick={startEditing}
-                >
-                  <Pencil /> Edit message
-                </Button>
-              </span>
-            </Hint>
-          )}
-          <Button variant="ghost" size="sm" className="text-muted" onClick={() => void explain()} disabled={loading}>
-            {aiBusy ? (
-              <>
-                <Logo size={14} animated="loop" className="logo-draw-loop" />
-                Stop explaining
-              </>
-            ) : (
-              <>
-                <Sparkles className="text-primary" />
-                Explain with AI
-              </>
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted"
+              onClick={() => void runCommitAi('explain')}
+              disabled={loading}
+            >
+              {aiBusy ? (
+                <>
+                  <Logo size={14} animated="loop" className="logo-draw-loop" />
+                  Stop explaining
+                </>
+              ) : (
+                <>
+                  <Sparkles className="text-primary" />
+                  Explain with AI
+                </>
+              )}
+            </Button>
+            {!stash && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted"
+                onClick={() => void runCommitAi('review')}
+                disabled={loading}
+              >
+                {reviewBusy ? (
+                  <>
+                    <Logo size={14} animated="loop" className="logo-draw-loop" />
+                    Stop reviewing
+                  </>
+                ) : (
+                  <>
+                    <SearchCheck className="text-primary" />
+                    Review with AI
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
         </div>
-        {aiText && (
-          <div className="mt-1 rounded-md border border-primary/30 bg-primary/5 text-xs leading-relaxed">
-            <div className="flex items-center justify-between pl-3 pr-1.5 pt-1.5">
-              <span className="flex items-center gap-1.5 font-medium text-primary">
-                <Sparkles className="size-3.5" /> AI explanation
-              </span>
-              <Hint label="Open explanation in full view">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Open AI explanation in full view"
-                  onClick={() => setAiExpanded(true)}
-                >
-                  <Maximize2 className="size-3" />
-                </Button>
-              </Hint>
-            </div>
-            <div className="px-3 pb-2.5 pt-1">
-              <AiText text={aiText} />
-            </div>
-          </div>
-        )}
-        <AiResultDialog
-          open={aiExpanded && !!aiText}
-          onOpenChange={(open) => !open && setAiExpanded(false)}
+        <AiResultPanel
           title="AI explanation"
-          icon={<Sparkles className="size-4 text-primary" />}
-          text={aiText ?? ''}
+          icon={<Sparkles className="size-3.5" />}
+          busy={aiBusy}
+          waitMessages={EXPLAIN_WAIT_MESSAGES}
+          text={aiText}
+          onStop={() => useAiWork.getState().stopExplain(explainKey)}
+          onDismiss={() => useAiWork.getState().setExplain(explainKey, null)}
+          className="mt-1"
+          bodyClassName="max-h-72"
+        />
+        <AiResultPanel
+          title="AI review"
+          icon={<SearchCheck className="size-3.5" />}
+          busy={reviewBusy}
+          waitMessages={REVIEW_WAIT_MESSAGES}
+          text={reviewText}
+          onStop={() => useAiWork.getState().stopExplain(reviewKey)}
+          onDismiss={() => useAiWork.getState().setExplain(reviewKey, null)}
+          className="mt-1"
+          bodyClassName="max-h-72"
         />
       </div>
 

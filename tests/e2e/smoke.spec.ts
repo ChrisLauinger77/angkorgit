@@ -2018,3 +2018,30 @@ test('the diff header reviews and explains a single file with AI', async ({ page
   await diff.getByRole('button', { name: 'Dismiss AI explanation' }).click();
   await expect(diff.locator('[data-ai-result-panel]')).toHaveCount(0);
 });
+
+test('a commit can be reviewed with AI from the inspector', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const chip = page.locator('[data-ai-status]');
+  await chip.click();
+  const settings = page.getByRole('dialog');
+  await settings.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: /Installed AI CLI/ }).click();
+  await settings.getByRole('button', { name: /Claude Code/ }).click();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+
+  await page.getByText('feat(graph): virtualize commit rows').first().click();
+  const inspector = page.locator('[aria-label="Commit files"]').locator('..');
+  await expect(page.getByRole('button', { name: 'Review with AI' })).toBeVisible();
+  await page.getByRole('button', { name: 'Review with AI' }).click();
+  await expect(page.getByRole('button', { name: 'Stop reviewing' })).toBeVisible();
+  const panel = inspector.locator('[data-ai-result-panel]');
+  await expect(panel).toContainText('AI review');
+  await expect(panel).toHaveAttribute('data-ai-result-panel', 'done', { timeout: 10_000 });
+  await expect(panel).toContainText('demo response');
+  await expect(page.getByRole('button', { name: 'Review with AI' })).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss AI review' }).click();
+  await expect(panel).toHaveCount(0);
+});

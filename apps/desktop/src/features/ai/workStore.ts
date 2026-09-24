@@ -49,6 +49,8 @@ interface AiWorkState {
 
 export const explainKeyFor = (repoPath: string, oid: string) => `${repoPath}\n${oid}`;
 
+export const commitReviewKeyFor = (repoPath: string, oid: string) => `${repoPath}\n${oid}\nreview`;
+
 export const fileAiKeyFor = (repoPath: string, target: FileAiTarget) =>
   `${repoPath}\n${target.oid ?? (target.staged ? 'staged' : 'unstaged')}\n${target.path}`;
 

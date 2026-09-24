@@ -221,3 +221,50 @@ export async function explainFileChanges(ai: AiProvider, patch: string, context:
   });
   return result.text.trim();
 }
+
+export interface CommitChangeContext {
+  oid: string;
+  summary: string;
+  files: string[];
+}
+
+const COMMIT_FILES_SHOWN = 30;
+
+export function commitChangeContextLines(context: CommitChangeContext): string {
+  const shown = context.files.slice(0, COMMIT_FILES_SHOWN);
+  const rest = context.files.length - shown.length;
+  const files =
+    context.files.length === 0
+      ? 'It lists no changed files.'
+      : `${context.files.length} file${context.files.length === 1 ? '' : 's'} changed: ${shown.join(', ')}${rest > 0 ? ` and ${rest} more` : ''}.`;
+  return `Commit ${context.oid.slice(0, 8)}${context.summary ? ` ("${context.summary}")` : ''}. ${files} The whole commit diff follows, so a symbol that disappears from one file may reappear in another.`;
+}
+
+export async function reviewCommitChanges(
+  ai: AiProvider,
+  patch: string,
+  context: CommitChangeContext & ReviewContext,
+): Promise<string> {
+  const result = await ai.complete({
+    messages: [
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: reviewPrompt('this commit', patch, context, commitChangeContextLines(context)) },
+    ],
+    maxTokens: LONG_ANSWER_TOKENS,
+  });
+  return result.text.trim();
+}
+
+export async function explainCommitChanges(ai: AiProvider, patch: string, context: CommitChangeContext): Promise<string> {
+  const result = await ai.complete({
+    messages: [
+      { role: 'system', content: SYSTEM },
+      {
+        role: 'user',
+        content: `Explain this commit.\n\n${commitChangeContextLines(context)}\n\n${EXPLAIN_SHAPE}\n\n${clip(patch)}`,
+      },
+    ],
+    maxTokens: LONG_ANSWER_TOKENS,
+  });
+  return result.text.trim();
+}

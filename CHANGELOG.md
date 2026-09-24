@@ -17,6 +17,11 @@ All notable changes to AngKorGit are documented here. The format follows
   that moved to another file is not reported as missing. Reviews follow the same conventions
   as the staged review, including `.angkorgit/review.md`.
 
+- **Review a whole commit with AI.** Commit details has Review with AI next to Explain
+  with AI. The review covers the commit's full diff, knows the commit message and its file
+  list, follows the same conventions as the other reviews, and lands in the same card with
+  findings by severity and a verdict. Explain with AI gets the same context.
+
 ### Changed
 - **Diff header fits narrow windows.** Word diff, line wrapping and whole-file view moved
   into one View options menu, the change and file counters no longer wrap onto a second

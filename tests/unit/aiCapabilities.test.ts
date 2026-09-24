@@ -141,3 +141,36 @@ describe('single-file review and explanation', () => {
     expect(lines).not.toContain('f30.ts');
   });
 });
+
+describe('commit review and explanation', () => {
+  const context = { oid: 'abcdef1234567890', summary: 'feat: add retries', files: ['a.ts', 'b.ts'] };
+
+  it('reviewCommitChanges names the commit, its files, the conventions and the patch', async () => {
+    let captured: AiCompletionRequest | null = null;
+    await aiCapabilities.reviewCommitChanges(capturingProvider((r) => (captured = r)), 'diff body', {
+      ...context,
+      instructions: 'Flag any raw SQL.',
+    });
+    const prompt = userPrompt(captured!);
+    expect(prompt).toMatch(/^Review this commit\./);
+    expect(prompt).toContain('Commit abcdef12 ("feat: add retries"). 2 files changed: a.ts, b.ts.');
+    expect(prompt).toContain('**Verdict**');
+    expect(prompt).toContain('General review conventions:\nFlag any raw SQL.');
+    expect(prompt.endsWith('diff body')).toBe(true);
+    expect(captured!.maxTokens).toBe(4096);
+  });
+
+  it('explainCommitChanges carries the commit line and the explanation shape', async () => {
+    let captured: AiCompletionRequest | null = null;
+    await aiCapabilities.explainCommitChanges(capturingProvider((r) => (captured = r)), 'diff body', {
+      ...context,
+      files: Array.from({ length: 35 }, (_, i) => `f${i}.ts`),
+    });
+    const prompt = userPrompt(captured!);
+    expect(prompt).toMatch(/^Explain this commit\./);
+    expect(prompt).toContain('35 files changed:');
+    expect(prompt).toContain('f29.ts and 5 more');
+    expect(prompt).toContain('**What it does**');
+    expect(prompt.endsWith('diff body')).toBe(true);
+  });
+});
