@@ -6,6 +6,15 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-09-28
+
+The languages release. The diff highlighter learns Less, SCSS, Dockerfiles, Makefiles,
+CMake and the ini family from a contributor, then Astro, Svelte, Vue and HTML: frontmatter
+and `<script>` / `<style>` blocks colour in their own language, in diffs and in blame.
+Around it, Cursor CLI joins the AI assistants, file history answers N and P like the diff
+view, Alt+Up reaches coding agents in the embedded terminal on Linux and Windows, and
+reconnecting an account no longer looks like adding one.
+
 ### Added
 - **Cursor CLI as an AI assistant.** Settings → AI → Installed AI CLI detects Cursor's
   `agent` (and the older `cursor-agent` name) next to the other CLIs and runs it in print
@@ -1506,7 +1515,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cheat2001/angkorgit/compare/v0.15.0...v0.16.0
