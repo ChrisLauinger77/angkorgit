@@ -29,6 +29,9 @@ All notable changes to AngKorGit are documented here. The format follows
   xterm.js rewrote them into Ctrl+Up and Ctrl+Down there, so a coding agent's "Alt+Up to
   answer" shortcut never fired. The terminal now sends the Alt sequence itself on every
   platform. (#45)
+- **Reconnecting an account no longer looks like adding one.** "Reconnect with a new
+  token…" now opens the form titled with the account, locks provider, host and username,
+  and its button reads Reconnect, so a typo cannot create a second account.
 
 ## [0.18.0] — 2026-09-24
 

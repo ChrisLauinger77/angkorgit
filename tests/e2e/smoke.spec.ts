@@ -79,12 +79,27 @@ test('reconnecting an account opens the token form with the account prefilled', 
   await expect(dialog.getByPlaceholder('Paste the token')).toBeHidden();
   await dialog.getByRole('button', { name: 'demo-user on github.com actions' }).click();
   await page.getByRole('menuitem', { name: /Reconnect with a new token/ }).click();
+  await expect(page.getByRole('menu')).toBeHidden();
   const token = dialog.getByPlaceholder('Paste the token');
   await expect(token).toBeVisible();
   await expect(token).toBeFocused();
+  await expect(dialog.getByText('Reconnect demo-user @ github.com')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Reconnect', exact: true })).toBeVisible();
   await expect
-    .poll(() => dialog.locator('input').evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value)))
-    .toEqual(expect.arrayContaining(['demo-user', 'github.com']));
+    .poll(() =>
+      dialog.locator('input').evaluateAll((els) =>
+        els
+          .filter((el) => ['demo-user', 'github.com'].includes((el as HTMLInputElement).value))
+          .map((el) => (el as HTMLInputElement).disabled),
+      ),
+    )
+    .toEqual([true, true]);
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(token).toBeHidden();
+  await dialog.getByRole('button', { name: 'Add account' }).click();
+  await expect(dialog.getByText('Add account', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Connect', exact: true })).toBeVisible();
+  await expect(dialog.getByPlaceholder('optional')).toBeEnabled();
 });
 
 test('a file history row can open the full commit in the graph', async ({ page }) => {

@@ -2062,7 +2062,7 @@ features/
 │                               came back no_token/unauthorized; reconnect() sets
 │                               adding=true and focuses the token field from an effect
 │                               once the form is mounted (issue #8: it used to focus a
-│                               hidden input and nothing happened), and a "…" menu
+│                               hidden input and nothing happened); RECONNECT IS ITS OWN STATE (owner screenshot 2026-09-28: the form read "Add account" with every field editable): `reconnecting` holds the account, the title reads "Reconnect <user> @ <host>", provider/host/username are locked (the Bitbucket email stays editable only while the stored one is empty), the button says Reconnect and the success toast Reconnected; Cancel, Escape and success clear it through closeForm and the header's Add account goes through startAdd, so a reconnect can never create a second account by a typo), and a "…" menu
 │                               (make default when the host has several, reconnect,
 │                               Remove… via confirmDialog — never a hover-only trash
 │                               icon); per-provider token connect, verified-on-connect,
