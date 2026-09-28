@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { highlightLineState, languageOf, supportsBlockComments } from '@/shared/highlight';
+import type { DiffLine } from '@angkorgit/core';
+import {
+  embeddedDiffLanguages,
+  embeddedLanguages,
+  highlightLineState,
+  languageOf,
+  supportsBlockComments,
+} from '@/shared/highlight';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, '');
 const wholeLineIsComment = (html: string) =>
@@ -110,5 +117,66 @@ describe('highlightLineState', () => {
     const line = highlightLineState('x = 1', 'python', true);
     expect(line.html).toContain('x');
     expect(line.endsInComment).toBe(false);
+  });
+});
+
+const ctx = (oldLineNo: number, newLineNo: number, content: string): DiffLine => ({ kind: 'context', oldLineNo, newLineNo, content });
+const add = (newLineNo: number, content: string): DiffLine => ({ kind: 'addition', oldLineNo: null, newLineNo, content });
+const del = (oldLineNo: number, content: string): DiffLine => ({ kind: 'deletion', oldLineNo, newLineNo: null, content });
+const hunk = (lines: DiffLine[]) => ({ header: '', oldStart: lines[0]?.oldLineNo ?? 1, oldLines: 0, newStart: lines[0]?.newLineNo ?? 1, newLines: 0, lines });
+
+describe('astro frontmatter', () => {
+  it('maps astro to the xml grammar and svelte and toml to existing grammars', () => {
+    expect(languageOf('src/components/Hero.astro')).toBe('astro');
+    expect(languageOf('App.svelte')).toBe('xml');
+    expect(languageOf('Cargo.toml')).toBe('ini');
+    expect(supportsBlockComments('astro')).toBe(true);
+    expect(highlightLineState('<Header title="x" />', 'astro').html).toContain('hljs-tag');
+    expect(highlightLineState('<!-- note', 'astro').endsInComment).toBe(true);
+  });
+
+  it('colours the lines between the fences as typescript in a whole file', () => {
+    const langs = embeddedLanguages(['---', "import x from './x';", 'const n = 1;', '---', '<div>{n}</div>'], 'astro');
+    expect(langs).toEqual(['astro', 'typescript', 'typescript', 'astro', 'astro']);
+    expect(embeddedLanguages(['<div />', '---'], 'astro')).toEqual(['astro', 'astro']);
+    expect(embeddedLanguages(['---', 'x'], 'typescript')).toBeNull();
+  });
+
+  it('colours script and style blocks by their language in astro, vue, svelte and html', () => {
+    expect(embeddedLanguages(['<div />', '<script>', 'const a = 1;', '</script>', '<style>', 'a { b: c }', '</style>', '<p />'], 'astro')).toEqual([
+      'astro', 'astro', 'typescript', 'astro', 'astro', 'css', 'astro', 'astro',
+    ]);
+    expect(embeddedLanguages(['<script lang="ts">', 'let n: number;', '</script>', '<style lang="scss">', '$x: 1;', '</style>'], 'xml')).toEqual([
+      'xml', 'typescript', 'xml', 'xml', 'scss', 'xml',
+    ]);
+    expect(embeddedLanguages(['<script>', 'var v;', '</script>'], 'xml')).toEqual(['xml', 'javascript', 'xml']);
+    expect(embeddedLanguages(['<script src="a.js"></script>', 'text'], 'xml')).toEqual(['xml', 'xml']);
+    expect(embeddedLanguages(['<div>', 'plain'], 'css')).toBeNull();
+  });
+
+  it('reads a mid-file hunk back to its script or style closer', () => {
+    const marked = embeddedDiffLanguages([hunk([ctx(30, 30, '  menu.classList.add("x");'), add(31, '  done();'), ctx(31, 32, '</script>'), ctx(32, 33, '<p />')])], 'astro');
+    expect([...marked!.entries()].map(([l, lang]) => [l.content, lang])).toEqual([
+      ['  menu.classList.add("x");', 'typescript'],
+      ['  done();', 'typescript'],
+    ]);
+    const style = embeddedDiffLanguages([hunk([ctx(50, 50, 'a { color: red }'), ctx(51, 51, '</style>')])], 'xml');
+    expect(style!.get(style!.keys().next().value!)).toBe('css');
+  });
+
+  it('marks frontmatter lines of a hunk that starts at the top of the file', () => {
+    const lines = [ctx(1, 1, '---'), ctx(2, 2, "import a from 'a';"), add(3, 'const b = 2;'), ctx(3, 4, '---'), ctx(4, 5, '<a href={b} />'), add(6, '<p>{a}</p>')];
+    const marked = embeddedDiffLanguages([hunk(lines)], 'astro');
+    expect([...marked!.keys()].map((l) => l.content)).toEqual(["import a from 'a';", 'const b = 2;']);
+    expect(marked!.get(lines[2])).toBe('typescript');
+  });
+
+  it('treats lines before the first fence of a mid-file hunk as frontmatter and the rest as template', () => {
+    const lines = [ctx(8, 8, 'const c = 3;'), del(9, 'const gone = 4;'), ctx(10, 9, '---'), ctx(11, 10, '<c />'), add(11, '<d />')];
+    const marked = embeddedDiffLanguages([hunk(lines)], 'astro');
+    expect([...marked!.keys()].map((l) => l.content)).toEqual(['const c = 3;', 'const gone = 4;']);
+    const template = embeddedDiffLanguages([hunk([ctx(40, 40, '<e />'), add(41, '<f />')])], 'astro');
+    expect(template!.size).toBe(0);
+    expect(embeddedDiffLanguages([hunk(lines)], 'css')).toBeNull();
   });
 });

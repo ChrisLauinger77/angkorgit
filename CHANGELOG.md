@@ -18,6 +18,11 @@ All notable changes to AngKorGit are documented here. The format follows
   grammars instead of rendering as plain text. Common aliases (`cts`, `pyi`, `mdx`,
   `kts`, …) and basenames (`Dockerfile`, `Makefile`, `CMakeLists.txt`) map to the
   right grammar. CSS selector token classes are coloured so style diffs are readable.
+- **Astro, Svelte, Vue and HTML blocks in the diff highlighter.** `.astro` files colour their
+  template as markup and the `---` frontmatter as TypeScript, and `<script>` and `<style>`
+  blocks in Astro, Svelte, Vue and HTML files colour as TypeScript or JavaScript (following
+  `lang="ts"`) and CSS, SCSS or Less, in diffs and in blame. `.svelte` uses the markup grammar
+  and `.toml` the ini grammar, so no new grammar ships for any of it.
 
 ### Fixed
 - **Alt+Up and Alt+Down reach the shell in the embedded terminal on Linux and Windows.**
