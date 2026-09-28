@@ -1,6 +1,8 @@
 ---
 import Logo from './Logo.astro';
 import { SITE } from '../lib/site';
+import { PLATFORMS } from '../lib/install';
+import { COMPETITORS } from '../lib/compare';
 ---
 
 <footer class="relative overflow-hidden border-t border-border-subtle">
@@ -21,7 +23,7 @@ import { SITE } from '../lib/site';
     <path d="M0 160 H640" />
   </svg>
 
-  <div class="container-site rail-offset relative grid gap-12 py-16 md:grid-cols-[1.6fr_1fr_1fr]">
+  <div class="container-site rail-offset relative grid gap-12 py-16 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
     <div class="space-y-5">
       <a href="/" class="flex items-center gap-2.5">
         <Logo size={28} class="text-foreground" />
@@ -42,6 +44,25 @@ import { SITE } from '../lib/site';
         <li><a class="transition-colors hover:text-foreground" href="/docs/">Documentation</a></li>
         <li><a class="transition-colors hover:text-foreground" href="/docs/roadmap/">Roadmap</a></li>
         <li><a class="transition-colors hover:text-foreground" href={SITE.ci}>CI status</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3 class="font-mono text-xs uppercase tracking-[0.14em] text-faint">Download</h3>
+      <ul class="mt-4 space-y-2.5 text-sm text-muted">
+        {PLATFORMS.map((p) => (
+          <li><a class="transition-colors hover:text-foreground" href={`/download/${p.id}/`}>Git client for {p.name}</a></li>
+        ))}
+        <li><a class="transition-colors hover:text-foreground" href="/#install">Homebrew and all builds</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3 class="font-mono text-xs uppercase tracking-[0.14em] text-faint">Compare</h3>
+      <ul class="mt-4 space-y-2.5 text-sm text-muted">
+        {COMPETITORS.map((c) => (
+          <li><a class="transition-colors hover:text-foreground" href={`/compare/${c.slug}/`}>vs {c.short}</a></li>
+        ))}
       </ul>
     </div>
 

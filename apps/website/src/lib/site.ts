@@ -17,10 +17,9 @@ async function latestReleaseVersion(): Promise<string> {
 export const SITE = {
   name: 'AngKorGit',
   alternateNames: ['Angkor Git', 'AngkorGit', 'angkorgit', 'Git Angkor', 'GitAngkor', 'gitangkor'],
-  title:
-    'AngKorGit (Angkor Git) — fast, free Git client and Git GUI for macOS, Windows & Linux',
+  title: 'AngKorGit: a free, native Git client for macOS, Windows and Linux',
   description:
-    'Angkor Git (AngKorGit) is a fast, free, open-source Git client and Git GUI for macOS, Windows, and Linux, built native with Tauri v2, Rust and libgit2. Visual commit graphs, side-by-side diff review, visual conflict resolution, and AI assistance.',
+    'AngKorGit is a free, open source Git client and Git GUI for macOS, Windows and Linux. Native Rust and libgit2, no Electron, no account. Commit graph, side by side diffs, a visual conflict resolver, worktrees, pull requests and AI help.',
   repo: 'https://github.com/cheat2001/angkorgit',
   releases: 'https://github.com/cheat2001/angkorgit/releases',
   license: 'https://github.com/cheat2001/angkorgit/blob/main/LICENSE',
@@ -41,5 +40,6 @@ export const NAV = [
   { href: '/#conflicts', label: 'What it does' },
   { href: '/#box', label: 'In the box' },
   { href: '/#install', label: 'Install' },
+  { href: '/compare/', label: 'Compare' },
   { href: '/docs/', label: 'Docs' },
 ] as const;

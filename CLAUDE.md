@@ -78,7 +78,40 @@ angkorgit/
 │       │                        Display type is Instrument Serif (@fontsource), `.display` class.
 │       │                        Copy rules: owner voice, no download-size numbers, no
 │       │                        Cambodia/name mentions (owner request 2026-09-05)
-│       └── pages/             ← index.astro, 404.astro
+│       │                        SEO PAGES (owner request 2026-09-28, "our site should appear
+│       │                        for git client / git gui searches"): the home page alone
+│       │                        cannot outrank the Tower/devart/Hostinger listicles for the
+│       │                        head terms, so the site grew pages for queries a small site
+│       │                        can win. lib/compare.ts = COMPETITORS (gitkraken, sourcetree,
+│       │                        fork, tower, github-desktop): per client a title/description,
+│       │                        heading, intro paragraphs in the owner's voice, a facts table
+│       │                        (platforms/price/source/built with/sign-in — theirs vs OURS),
+│       │                        theyDo/weDo lists (honest both ways) and a FAQ; the facts were
+│       │                        checked against each vendor's own pricing/platform page on
+│       │                        2026-09-28, re-verify before editing. lib/install.ts =
+│       │                        PLATFORMS + BREW (the data Install.astro used to hold inline;
+│       │                        Install.astro, InstallCta and the download pages all read it).
+│       │                        layouts/Page.astro = plain page shell (Header, breadcrumb +
+│       │                        BreadcrumbList JSON-LD, kicker/h1/intro slot, Footer; no rail).
+│       │                        components/InstallCta (per-platform download buttons) and
+│       │                        components/Faq (dl + the page passes FAQPage JSON-LD itself).
+│       │                        NO git-scm.com listing PR: the owner declined it the same
+│       │                        day ("just make our site on top") — do not re-propose.
+│       │                        The <title> was trimmed from the 82-char "(Angkor Git) …
+│       │                        Git GUI" form to "AngKorGit: a free, native Git client for
+│       │                        macOS, Windows and Linux" (the alternate-name stuffing read
+│       │                        as spam; alternateNames stay in the JSON-LD). NAV gained
+│       │                        Compare; Footer gained Download and Compare columns (5-col
+│       │                        grid on lg). Header marks the nav link active for /docs AND
+│       │                        /compare by first path segment.
+│       └── pages/             ← index.astro, 404.astro, compare/index.astro (hub of the five
+│                                cards), compare/[slug].astro (facts table, they/we lists,
+│                                graph screenshot, FAQ, InstallCta, links to the other four),
+│                                download/[platform].astro (macos/windows/linux: "Git client
+│                                for <OS>" — download button, first-launch steps, terminal
+│                                block, what-you-get grid, diff screenshot, per-OS FAQ incl.
+│                                the Wayland drag-and-drop gap from G43, the 10.13 macOS
+│                                target from the Tauri default, and the AppImage-only updater)
 ├── packages/core/             ← @angkorgit/core — PURE TypeScript domain (no React)
 │   └── src/
 │       ├── git/types.ts       ← serde-mirrored domain types (CommitInfo, FileDiff…)
