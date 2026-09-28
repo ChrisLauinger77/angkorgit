@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, SlidersHorizontal, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, SlidersHorizontal, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
 import type { CommitFileInfo, FileDiff } from '@angkorgit/core';
 import { aiCapabilities, hasCommittedHistory, hasReviewableText, hashText, locateDiffLine, patchTextOf, PROJECT_REVIEW_FILE } from '@angkorgit/core';
 import {
@@ -39,6 +39,7 @@ import { scrollDiffToLine, useDiffFind } from './diffSearch';
 import { useDiffSelectAll } from './diffCopy';
 import { diffSelectionText } from './diffSelection';
 import { changeBlocks, DiffMinimap, scrollToFraction } from './DiffMinimap';
+import { ChangeNavButtons, useChangeJump } from './changeNav';
 
 const LOCATE_HIGHLIGHT_MS = 2500;
 const COMPACT_HEADER_WIDTH = 960;
@@ -180,15 +181,11 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
 
   const goFileRef = useRef(goFile);
   goFileRef.current = goFile;
-  const jumpChangeRef = useRef<(direction: 1 | -1) => void>(() => {});
-
   useShortcuts(
     useMemo(
       () => [
         { combo: '[', handler: () => goFileRef.current(-1), skipInInput: true },
         { combo: ']', handler: () => goFileRef.current(1), skipInInput: true },
-        { combo: 'p', handler: () => jumpChangeRef.current(-1), skipInInput: true },
-        { combo: 'n', handler: () => jumpChangeRef.current(1), skipInInput: true },
       ],
       [],
     ),
@@ -233,19 +230,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diff, loading, blocks]);
 
-  const jumpChange = (direction: 1 | -1) => {
-    const el = scrollRef.current;
-    if (!el || blocks.length === 0 || el.scrollHeight === 0) return;
-    const current = (el.scrollTop + el.clientHeight * 0.35) / el.scrollHeight;
-    const epsilon = 0.002;
-    const next =
-      direction === 1
-        ? (blocks.find((b) => b.fraction > current + epsilon) ?? blocks[0])
-        : ([...blocks].reverse().find((b) => b.fraction < current - epsilon) ??
-          blocks[blocks.length - 1]);
-    scrollToFraction(el, next.fraction);
-  };
-  jumpChangeRef.current = jumpChange;
+  const jumpChange = useChangeJump(blocks, scrollRef);
 
   const statusEntry = isWorkingCopy
     ? status?.files.find((f) => f.path === target.path)
@@ -567,38 +552,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {blocks.length > 0 && (
-          <>
-            <Separator orientation="vertical" className="mx-1 h-4" />
-            <Hint
-              label={
-                <span className="flex items-center gap-1">
-                  Previous change <Kbd>P</Kbd>
-                </span>
-              }
-            >
-              <Button variant="ghost" size="icon-sm" aria-label="Previous change" onClick={() => jumpChange(-1)}>
-                <ChevronUp className="size-4" />
-              </Button>
-            </Hint>
-            <Hint
-              label={
-                <span className="flex items-center gap-1">
-                  Next change <Kbd>N</Kbd>
-                </span>
-              }
-            >
-              <Button variant="ghost" size="icon-sm" aria-label="Next change" onClick={() => jumpChange(1)}>
-                <ChevronDown className="size-4" />
-              </Button>
-            </Hint>
-            {!compact && (
-              <span className="text-[10px] text-faint">
-                {blocks.length} change{blocks.length === 1 ? '' : 's'}
-              </span>
-            )}
-          </>
-        )}
+        <ChangeNavButtons blocks={blocks} onJump={jumpChange} showCount={!compact} />
         {siblings.length > 1 && fileIndex >= 0 && (
           <>
             <Separator orientation="vertical" className="mx-1 h-4" />

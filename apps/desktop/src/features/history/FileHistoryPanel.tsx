@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -26,7 +26,8 @@ import { useUi } from '@/features/ui/store';
 import { timeAgo } from '@/shared/utils';
 import { captureSelectionRanges, useKeepSelection } from '@/shared/useKeepSelection';
 import { DiffViewer } from '@/features/diff/DiffViewer';
-import { DiffMinimap } from '@/features/diff/DiffMinimap';
+import { changeBlocks, DiffMinimap } from '@/features/diff/DiffMinimap';
+import { ChangeNavButtons, useChangeJump } from '@/features/diff/changeNav';
 import { BlameView } from '@/features/blame/BlameView';
 import { useDiffFind } from '@/features/diff/diffSearch';
 import { useDiffSelectAll } from '@/features/diff/diffCopy';
@@ -96,6 +97,8 @@ export function FileHistoryPanel({ file }: { file: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const textDiff = diff && !diff.isBinary && !diff.isImage ? diff : null;
+  const blocks = useMemo(() => (textDiff ? changeBlocks(textDiff, diffView) : []), [textDiff, diffView]);
+  const jumpChange = useChangeJump(blocks, scrollRef);
   const { findBar, search } = useDiffFind(textDiff, scrollRef);
   const { selectAllOverlay, selectSide } = useDiffSelectAll(textDiff, scrollRef);
   const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: CommitInfo } | null>(null);
@@ -326,6 +329,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
             <FileText className="size-3.5" />
           </Button>
         </Hint>
+        <ChangeNavButtons blocks={blocks} onJump={jumpChange} />
           </>
         )}
       </div>
@@ -454,7 +458,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
             />
           ) : (
             <>
-          <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+          <div ref={scrollRef} data-history-diff-scroller className="min-h-0 min-w-0 flex-1 overflow-y-auto">
             {diffLoading ? (
               <div className="flex h-full items-center justify-center">
                 <Spinner className="size-5" />

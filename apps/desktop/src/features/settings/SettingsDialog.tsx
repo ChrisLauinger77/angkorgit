@@ -756,7 +756,7 @@ const SHORTCUTS: Array<[string, string[]]> = [
   ['Select / copy diff side', ['mod', 'A / C']],
   ['Save (file editor)', ['mod', 'S']],
   ['Zoom in / out / reset', ['mod', '+ / − / 0']],
-  ['Previous / next change (diff)', ['P / N']],
+  ['Previous / next change (diff, file history)', ['P / N']],
   ['Previous / next file (diff)', ['[ / ]']],
   ['Close diff view', ['Esc']],
 ];

@@ -2045,3 +2045,43 @@ test('a commit can be reviewed with AI from the inspector', async ({ page }) => 
   await page.getByRole('button', { name: 'Dismiss AI review' }).click();
   await expect(panel).toHaveCount(0);
 });
+
+test('file history jumps between changes with N and P like the diff view', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('angkorgit-settings', JSON.stringify({ state: { reduceMotion: true }, version: 0 }));
+  });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('palette-seed.sql').first().click();
+  await page.locator('section[aria-label^="Diff for"]').getByRole('button', { name: 'File history' }).click();
+  const history = page.locator('section[aria-label="History of src/data/palette-seed.sql"]');
+  await expect(history).toBeVisible();
+  await expect(history.getByRole('button', { name: 'Next change' })).toHaveCount(0);
+
+  await history.locator('[data-working-copy-row]').click();
+  await expect(history.getByRole('button', { name: 'Next change' })).toBeVisible();
+  await expect(history.getByText('1 change', { exact: true })).toBeVisible();
+  const scroller = history.locator('[data-history-diff-scroller]');
+  const scrollTop = () => scroller.evaluate((el) => el.scrollTop);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight > el.clientHeight * 3)).toBe(true);
+  expect(await scrollTop()).toBe(0);
+
+  await page.keyboard.press('n');
+  await expect.poll(scrollTop).toBeGreaterThan(1000);
+  const atChange = await scrollTop();
+
+  await scroller.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(scrollTop).toBe(0);
+  await page.keyboard.press('p');
+  await expect.poll(scrollTop).toBe(atChange);
+
+  await scroller.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(scrollTop).toBe(0);
+  await history.getByRole('button', { name: 'Next change' }).click();
+  await expect.poll(scrollTop).toBe(atChange);
+});
