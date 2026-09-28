@@ -6,6 +6,20 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Cursor CLI as an AI assistant.** Settings → AI → Installed AI CLI detects Cursor's
+  `agent` (and the older `cursor-agent` name) next to the other CLIs and runs it in print
+  mode with your own Cursor login, trusting only the empty scratch folder it runs in. A model override passes through as `--model`. (#43)
+- **N and P in file history.** The diff pane of file history jumps to the next and
+  previous change with the same keys as the diff view, and its header carries the same
+  arrows and change count. (#44)
+
+### Fixed
+- **Alt+Up and Alt+Down reach the shell in the embedded terminal on Linux and Windows.**
+  xterm.js rewrote them into Ctrl+Up and Ctrl+Down there, so a coding agent's "Alt+Up to
+  answer" shortcut never fired. The terminal now sends the Alt sequence itself on every
+  platform. (#45)
+
 ## [0.18.0] — 2026-09-24
 
 The review release. AI can now review one file from its diff or a whole commit from the
