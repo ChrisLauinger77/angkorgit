@@ -13,6 +13,11 @@ All notable changes to AngKorGit are documented here. The format follows
 - **N and P in file history.** The diff pane of file history jumps to the next and
   previous change with the same keys as the diff view, and its header carries the same
   arrows and change count. (#44)
+- **More languages in the diff highlighter.** Diffs for Less, SCSS, Dockerfiles,
+  Makefiles, CMake, `.ini` / `.properties`, and `.editorconfig` pick up highlight.js
+  grammars instead of rendering as plain text. Common aliases (`cts`, `pyi`, `mdx`,
+  `kts`, …) and basenames (`Dockerfile`, `Makefile`, `CMakeLists.txt`) map to the
+  right grammar. CSS selector token classes are coloured so style diffs are readable.
 
 ### Fixed
 - **Alt+Up and Alt+Down reach the shell in the embedded terminal on Linux and Windows.**
