@@ -85,6 +85,7 @@ test('reconnecting an account opens the token form with the account prefilled', 
   await expect(token).toBeFocused();
   await expect(dialog.getByText('Reconnect demo-user @ github.com')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Reconnect', exact: true })).toBeVisible();
+  await expect(dialog.getByText('detected from the token')).toBeHidden();
   await expect
     .poll(() =>
       dialog.locator('input').evaluateAll((els) =>
@@ -100,6 +101,7 @@ test('reconnecting an account opens the token form with the account prefilled', 
   await expect(dialog.getByText('Add account', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Connect', exact: true })).toBeVisible();
   await expect(dialog.getByPlaceholder('optional')).toBeEnabled();
+  await expect(dialog.getByText('detected from the token')).toBeVisible();
 });
 
 test('a file history row can open the full commit in the graph', async ({ page }) => {
@@ -1762,7 +1764,7 @@ test('the GitHub account form offers fine-grained and classic token pages', asyn
   await dialog.getByRole('button', { name: 'Authentication', exact: true }).click();
   await dialog.getByRole('button', { name: 'Add account' }).click();
   await expect(dialog.getByPlaceholder('Paste the token')).toBeVisible();
-  await expect(dialog.getByRole('link', { name: 'Create one on GitHub' })).toHaveAttribute('href', /settings\/tokens\/new/);
+  await expect(dialog.getByRole('link', { name: 'Create one' })).toHaveAttribute('href', /settings\/tokens\/new/);
   await expect(dialog.getByRole('link', { name: 'fine-grained token' })).toHaveAttribute(
     'href',
     'https://github.com/settings/personal-access-tokens/new',

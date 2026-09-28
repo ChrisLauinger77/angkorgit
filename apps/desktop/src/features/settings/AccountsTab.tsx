@@ -531,7 +531,7 @@ export function AccountsTab() {
                   ? 'Connect your first account'
                   : 'Add account'}
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
               <Field label="Provider">
                 <Select value={provider} onValueChange={(v) => changeProvider(v as ProviderKind)} disabled={reconnecting !== null}>
                   <SelectTrigger>
@@ -557,7 +557,15 @@ export function AccountsTab() {
               </Field>
               <Field
                 label={provider === 'bitbucket' ? 'Atlassian account email' : 'Username'}
-                hint={provider === 'bitbucket' ? 'Bitbucket username is detected' : provider === 'other' ? undefined : 'detected from the token'}
+                hint={
+                  reconnecting
+                    ? undefined
+                    : provider === 'bitbucket'
+                      ? 'Bitbucket username is detected'
+                      : provider === 'other'
+                        ? undefined
+                        : 'detected from the token'
+                }
               >
                 <Input
                   placeholder={provider === 'bitbucket' ? 'you@company.com' : 'optional'}
@@ -578,7 +586,7 @@ export function AccountsTab() {
                         void openExternal(tokenPage);
                       }}
                     >
-                      Create one on {preset.label} <ExternalLink className="size-3" />
+                      Create one <ExternalLink className="size-3" />
                     </a>
                   ) : undefined
                 }
