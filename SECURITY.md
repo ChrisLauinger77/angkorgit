@@ -29,7 +29,7 @@ For transparency, the app's security-relevant surface is:
   the OS keychain, and are sent only to the provider you configured. Prefer the
   installed-CLI or local-model providers if you'd rather store no key at all.
 - **AI CLIs** — if you select an installed AI CLI (Claude Code, GitHub Copilot
-  CLI, Codex, Gemini CLI, OpenCode, Antigravity), AngKorGit runs that binary as a
+  CLI, Codex, Gemini CLI, OpenCode, Antigravity, Cursor CLI), AngKorGit runs that binary as a
   local subprocess with your user's permissions. Only a fixed allowlist of known
   CLI programs can be run.
 - **Network** — outbound only: git remotes you configure, Gravatar (avatar

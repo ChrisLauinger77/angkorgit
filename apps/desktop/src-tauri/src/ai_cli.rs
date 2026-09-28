@@ -7,13 +7,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, AppResult};
 
-const AGENTS: &[(&str, &str, &str)] = &[
-    ("claude", "Claude Code", "claude"),
-    ("copilot", "GitHub Copilot CLI", "copilot"),
-    ("codex", "Codex CLI", "codex"),
-    ("gemini", "Gemini CLI", "gemini"),
-    ("opencode", "OpenCode", "opencode"),
-    ("antigravity", "Antigravity CLI", "agy"),
+const AGENTS: &[(&str, &str, &[&str])] = &[
+    ("claude", "Claude Code", &["claude"]),
+    ("copilot", "GitHub Copilot CLI", &["copilot"]),
+    ("codex", "Codex CLI", &["codex"]),
+    ("gemini", "Gemini CLI", &["gemini"]),
+    ("opencode", "OpenCode", &["opencode"]),
+    ("antigravity", "Antigravity CLI", &["agy"]),
+    ("cursor", "Cursor CLI", &["cursor-agent", "agent"]),
 ];
 
 const OUTPUT_FILE_PLACEHOLDER: &str = "{OUTPUT_FILE}";
@@ -107,10 +108,9 @@ pub(crate) fn search_path(extra: Option<&Path>) -> std::ffi::OsString {
             push(&mut dirs, PathBuf::from(appdata).join("npm"));
         }
         if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
-            push(
-                &mut dirs,
-                PathBuf::from(local_appdata).join("Microsoft/WinGet/Links"),
-            );
+            let local_appdata = PathBuf::from(local_appdata);
+            push(&mut dirs, local_appdata.join("Microsoft/WinGet/Links"));
+            push(&mut dirs, local_appdata.join("cursor-agent"));
         }
     }
     std::env::join_paths(dirs).unwrap_or_default()
@@ -122,7 +122,9 @@ fn is_supported(program: &str) -> bool {
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_lowercase();
-    AGENTS.iter().any(|(_, _, bin)| *bin == stem)
+    AGENTS
+        .iter()
+        .any(|(_, _, bins)| bins.contains(&stem.as_str()))
 }
 
 pub(crate) fn capture(mut command: Command, stdin: &str, timeout: Duration) -> AppResult<Captured> {
@@ -250,8 +252,11 @@ pub fn detect() -> Vec<CliAgentInfo> {
     let path_env = search_path(None);
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir());
     let mut located: Vec<(usize, PathBuf)> = Vec::new();
-    for (index, (_, _, bin)) in AGENTS.iter().enumerate() {
-        if let Ok(path) = which::which_in(bin, Some(&path_env), &cwd) {
+    for (index, (_, _, bins)) in AGENTS.iter().enumerate() {
+        let found = bins
+            .iter()
+            .find_map(|bin| which::which_in(bin, Some(&path_env), &cwd).ok());
+        if let Some(path) = found {
             located.push((index, path));
         }
     }
@@ -261,11 +266,15 @@ pub fn detect() -> Vec<CliAgentInfo> {
             .iter()
             .enumerate()
             .filter(|(index, _)| !located.iter().any(|(i, _)| i == index))
-            .map(|(_, (_, _, bin))| *bin)
+            .flat_map(|(_, (_, _, bins))| bins.iter().copied())
             .collect();
         if !missing.is_empty() {
             for (stem, path) in shell_lookup(&missing) {
-                if let Some(index) = AGENTS.iter().position(|(_, _, bin)| *bin == stem) {
+                let agent = AGENTS
+                    .iter()
+                    .position(|(_, _, bins)| bins.contains(&stem.as_str()))
+                    .filter(|index| !located.iter().any(|(i, _)| i == index));
+                if let Some(index) = agent {
                     located.push((index, path));
                 }
             }
@@ -371,6 +380,17 @@ mod tests {
             timeout_secs: Some(5),
         });
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn accepts_cursor_cli_under_both_of_its_names() {
+        assert!(is_supported("agent"));
+        assert!(is_supported("/home/u/.local/bin/cursor-agent"));
+        #[cfg(windows)]
+        assert!(is_supported(
+            r"C:\Users\u\AppData\Local\cursor-agent\agent.exe"
+        ));
+        assert!(!is_supported("cursor"));
     }
 
     #[test]

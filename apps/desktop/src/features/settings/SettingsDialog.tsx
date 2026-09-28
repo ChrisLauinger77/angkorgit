@@ -391,7 +391,7 @@ function CliAgentPicker() {
         <SettingEmpty
           icon={<SquareTerminal className="size-4" />}
           title="No AI CLI found"
-          description="Install Claude Code, GitHub Copilot CLI, Codex CLI, Gemini CLI, OpenCode or Antigravity CLI, then scan again."
+          description="Install Claude Code, GitHub Copilot CLI, Codex CLI, Gemini CLI, OpenCode, Antigravity CLI or Cursor CLI, then scan again."
           action={
             <Button variant="secondary" size="sm" onClick={() => void scan()}>
               <RefreshCw className="size-3.5" /> Scan again
@@ -1325,7 +1325,7 @@ export function SettingsDialog() {
                     title="Provider"
                     description={
                       settings.ai.provider === 'cli'
-                        ? 'Uses an AI CLI already installed on this machine — Claude Code, GitHub Copilot CLI, Codex, Gemini CLI, OpenCode or Antigravity — with its own login and quota. No API key needed.'
+                        ? 'Uses an AI CLI already installed on this machine — Claude Code, GitHub Copilot CLI, Codex, Gemini CLI, OpenCode, Antigravity or Cursor CLI — with its own login and quota. No API key needed.'
                         : 'Used for commit messages, diff explanations, conflict help and reviews. Local models via Ollama or LM Studio need no API key.'
                     }
                     action={
