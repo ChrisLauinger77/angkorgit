@@ -94,9 +94,11 @@ Published at `cheat2001/homebrew-tap` (`Casks/angkorgit.rb`). Install:
 brew install --cask cheat2001/tap/angkorgit
 ```
 
-One command only: the cask runs `xattr -cr` on the installed app in a
-`postflight` block, clearing the Gatekeeper quarantine automatically (needed
-because the app is unsigned; recent Homebrew removed `--no-quarantine`).
+One command only: the cask runs `xattr -cr` on the installed app as a `run`
+step in a `postflight_steps` block, clearing the Gatekeeper quarantine
+automatically (needed because the app is not notarized; recent Homebrew removed
+`--no-quarantine`). Homebrew 7 deprecated the older `postflight do` block and
+warns on every `brew upgrade` (homebrew-tap issue #1), so keep the steps form.
 Own-tap casks may do this — homebrew/cask proper would reject it, so when the
 cask eventually moves there, signing/notarization must replace the postflight.
 
