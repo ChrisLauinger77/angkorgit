@@ -187,12 +187,14 @@ export function DiffViewer({
   hunkActions,
   onLineContextMenu,
   search,
+  emptyLabel = 'No changes',
 }: {
   diff: FileDiff;
   scrollRef?: React.RefObject<HTMLDivElement>;
   hunkActions?: (hunkIndex: number) => React.ReactNode;
   onLineContextMenu?: (event: React.MouseEvent, info: LineMenuInfo) => void;
   search?: SearchRanges;
+  emptyLabel?: string;
 }) {
   const diffView = useUi((s) => s.diffView);
   const useWord = useUi((s) => s.wordDiff);
@@ -212,7 +214,7 @@ export function DiffViewer({
     return <p className="py-8 text-center text-sm text-faint">Binary file — no text diff</p>;
   }
   if (diff.hunks.length === 0) {
-    return <p className="py-8 text-center text-sm text-faint">No changes</p>;
+    return <p className="py-8 text-center text-sm text-faint">{emptyLabel}</p>;
   }
 
   if (!wrap && scrollRef) {

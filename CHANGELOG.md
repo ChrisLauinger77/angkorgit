@@ -10,7 +10,8 @@ All notable changes to AngKorGit are documented here. The format follows
 - **Ignore whitespace in the diff.** View options gains an Ignore whitespace checkbox
   (`git diff -w`). It applies to the working copy, commits, and file history. Hunk and
   line staging turn off while it is on, because the hunks on screen are not the patch
-  git would apply. (#38)
+  git would apply, and a file whose only change is whitespace says so instead of showing
+  an empty diff. (#38)
 - **Arrow keys walk through the changes.** With a diff open, → jumps to the next change
   and ← to the previous one, the same jumps as N and P, wrapping around inside the file.
   ↑ and ↓ still switch files and Escape closes the diff, so a commit can be read from the

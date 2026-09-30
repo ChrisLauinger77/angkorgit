@@ -501,7 +501,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
           <Hint
             label={
               ignoreWhitespace
-                ? 'Ignoring whitespace. Hunk and line stage stay off — these hunks are not the patch git would apply.'
+                ? 'View options. Whitespace is ignored, so hunk and line staging are off: these hunks are not the patch git would apply.'
                 : 'View options'
             }
           >
@@ -537,7 +537,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             </DropdownMenuCheckboxItem>
             {ignoreWhitespace && (
               <p className="max-w-56 px-2 pb-1.5 pt-1 text-[11px] leading-snug text-faint">
-                Hunk and line stage stay off. These hunks are not the patch git would apply.
+                Hunk and line staging are off while whitespace is ignored, because these hunks are not the patch git would apply.
               </p>
             )}
             {textDiff && wrapUnavailable(textDiff) && (
@@ -728,6 +728,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             diff={diff}
             scrollRef={scrollRef}
             search={highlight}
+            emptyLabel={ignoreWhitespace ? 'Only whitespace changed in this file' : undefined}
             onLineContextMenu={(e, info) => {
               e.preventDefault();
               setLineMenu({
