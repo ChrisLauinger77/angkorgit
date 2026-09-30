@@ -1,10 +1,10 @@
 # Roadmap
 
-Updated for v0.19.0 (September 2026). [CHANGELOG.md](../CHANGELOG.md) is the
+Updated for v0.20.0 (September 2026). [CHANGELOG.md](../CHANGELOG.md) is the
 authoritative record of what shipped in each release; this file tracks
 direction.
 
-## Shipped (0.1.0 → 0.19.0)
+## Shipped (0.1.0 → 0.20.0)
 
 - [x] Repository: open, clone (with progress), recents, search, repository tabs (drag to reorder)
 - [x] Commit: stage files, hunks, and individual lines; unstage, commit, amend; per-repo commit drafts; multi-select in the working copy with bulk stage/unstage/stash/discard; discard for staged files; path filter over changed files and commit files
@@ -33,10 +33,12 @@ direction.
 - [x] Upstream workflow: add a remote from the sidebar, pull requests from a fork into its upstream (GitHub, GitLab, Bitbucket Cloud), a remembered clone folder, a right-click menu in the terminal
 - [x] Windows: SSH remotes with ed25519 and ECDSA host keys (libssh2 built on OpenSSL)
 - [x] Fonts: interface, code and terminal fonts picked from what is installed, each shown in its own face, terminal size, one-click reset
-- [x] Edit an unpushed commit message in place from the inspector or the graph menu (HEAD amended message-only, older commits rewritten in memory), undoable
+- [x] Edit a commit message in place from the inspector or the graph menu (HEAD amended message-only, older commits rewritten in memory), undoable; a pushed commit asks first because the next push must be forced
 - [x] macOS: the app bundle is signed as a whole so Desktop, Documents and Downloads permissions are remembered; GitHub account form points at fine-grained tokens too
 - [x] Performance: fast startup (splash waits for the app, not a timer; heavy views load on first use), a quiet file watcher, on-demand commit diffs, loading overlay on slow repository switches
 - [x] Inspector: an All files view of the whole tree at a commit or in the working copy with the changed files marked, a change-kind filter on a commit's files; sidebar section headers with icon tiles and count badges; Push with tags names every tag; auto fetch tries every remote and names the ones that failed
+- [x] Keyboard: → steps through the changes of an open diff; ⌘1 to ⌘9 and ⌘⇧[ / ⌘⇧] switch repository tabs; a per-repository key combination assigned from the tab or welcome menu that opens or switches to it from anywhere, listed in Settings → Shortcuts
+- [x] Diff: Ignore whitespace (`git diff -w`) in the View options menu, with staging stepping aside while it is on; force push from the Push menu asks first; Cursor CLI runs through its node entry on Windows
 
 ## Next
 

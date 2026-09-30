@@ -6,6 +6,15 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-09-30
+
+The keyboard release. → walks through the changes of an open diff, ⌘1 to ⌘9 and
+⌘⇧[ / ⌘⇧] switch repository tabs, and any repository can be given its own key
+combination that jumps to it from anywhere in the app, shown on the tab, the welcome
+page, the repository menu and the palette. The diff learns to ignore whitespace from a
+contributor, a pushed commit's message can be edited after a warning, force push from
+the menu asks first, and Cursor CLI works on Windows.
+
 ### Added
 - **Ignore whitespace in the diff.** View options gains an Ignore whitespace checkbox
   (`git diff -w`). It applies to the working copy, commits, and file history. Hunk and
@@ -1551,7 +1560,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cheat2001/angkorgit/compare/v0.16.0...v0.17.0
