@@ -51,6 +51,7 @@ import { useGraph } from '@/features/graph/store';
 import { useRepo } from '@/features/repository/store';
 import { useUndo } from '@/features/history/undoStore';
 import { focusRequests, useUi } from '@/features/ui/store';
+import { stepOpenDiffChange } from '@/features/diff/changeNav';
 import { useSettings } from '@/features/settings/store';
 import { openInEditor, preferredEditor, useEditors } from '@/features/settings/editors';
 import { aiConfigured, getAiProvider } from '@/features/ai/client';
@@ -435,12 +436,14 @@ export function CommitDetails({
       if (shownDiffs.length === 0) return;
       e.preventDefault();
       e.stopPropagation();
+      if (e.key === 'ArrowRight' && activeIndex >= 0 && stepOpenDiffChange(1) !== 'none') return;
       openFileAt(activeIndex < 0 ? 0 : activeIndex);
       return;
     }
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       e.stopPropagation();
+      if (activeIndex >= 0 && stepOpenDiffChange(-1) === 'stepped') return;
       closeCenterDiff();
       useUi.getState().focusGraph();
     }

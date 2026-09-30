@@ -93,6 +93,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
   const loadedKey = useRef<string | null>(null);
   const requestSeq = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const compact = useCompactHeader(headerRef);
   const [lineMenu, setLineMenu] = useState<{
@@ -190,12 +191,39 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
 
   const goFileRef = useRef(goFile);
   goFileRef.current = goFile;
+  const stepChangeRef = useRef<(direction: 1 | -1) => boolean>(() => false);
+  const arrowKeysBelongHere = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) return false;
+    const ui = useUi.getState();
+    if (ui.paletteOpen || ui.dialog || ui.conflictFile) return false;
+    const active = document.activeElement;
+    return !active || active === document.body || !!rootRef.current?.contains(active);
+  };
   useShortcuts(
     useMemo(
       () => [
         { combo: '[', handler: () => goFileRef.current(-1), skipInInput: true },
         { combo: ']', handler: () => goFileRef.current(1), skipInInput: true },
+        {
+          combo: 'arrowright',
+          skipInInput: true,
+          handler: (event: KeyboardEvent) => {
+            if (!arrowKeysBelongHere(event)) return;
+            stepChangeRef.current(1);
+          },
+        },
+        {
+          combo: 'arrowleft',
+          skipInInput: true,
+          handler: (event: KeyboardEvent) => {
+            if (!arrowKeysBelongHere(event)) return;
+            if (stepChangeRef.current(-1)) return;
+            useUi.getState().closeCenterDiff();
+            useUi.getState().focusGraph();
+          },
+        },
       ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     ),
   );
@@ -219,6 +247,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     [diff, diffView],
   );
 
+  const anchorChangeRef = useRef<(index: number | null) => void>(() => undefined);
   const autoJumpKey = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!diff || loading) return;
@@ -230,6 +259,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     const apply = () => {
       if (blocks.length > 0) scrollToFraction(el, blocks[0].fraction, 'auto');
       else el.scrollTo({ top: 0 });
+      anchorChangeRef.current(blocks.length > 0 ? 0 : null);
     };
     apply();
     const applied = el.scrollTop;
@@ -239,7 +269,13 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diff, loading, blocks]);
 
-  const jumpChange = useChangeJump(blocks, scrollRef);
+  const {
+    jump: jumpChange,
+    step: stepChange,
+    anchor: anchorChange,
+  } = useChangeJump(blocks, scrollRef, { arrowKeys: true, ready: !!diff && !loading });
+  stepChangeRef.current = stepChange;
+  anchorChangeRef.current = anchorChange;
 
   const statusEntry = isWorkingCopy
     ? status?.files.find((f) => f.path === target.path)
@@ -396,6 +432,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
 
   return (
     <motion.section
+      ref={rootRef}
       className="flex h-full flex-col bg-background"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}

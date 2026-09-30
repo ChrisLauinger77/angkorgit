@@ -99,7 +99,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
   const listScrollRef = useRef<HTMLDivElement>(null);
   const textDiff = diff && !diff.isBinary && !diff.isImage ? diff : null;
   const blocks = useMemo(() => (textDiff ? changeBlocks(textDiff, diffView) : []), [textDiff, diffView]);
-  const jumpChange = useChangeJump(blocks, scrollRef);
+  const { jump: jumpChange } = useChangeJump(blocks, scrollRef);
   const { findBar, search } = useDiffFind(textDiff, scrollRef);
   const { selectAllOverlay, selectSide } = useDiffSelectAll(textDiff, scrollRef);
   const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: CommitInfo } | null>(null);

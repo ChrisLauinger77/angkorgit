@@ -1363,15 +1363,30 @@ test('arrow keys walk from the graph into a commit\u2019s files and back', async
   await page.keyboard.press('ArrowRight');
   const files = page.getByLabel('Commit files');
   await expect(files).toBeFocused();
-  await expect(page.locator('section[aria-label="Diff for src/features/graph/CommitGraph.tsx"]')).toBeVisible();
+  const firstDiff = page.locator('section[aria-label="Diff for src/features/graph/CommitGraph.tsx"]');
+  const secondDiff = page.locator('section[aria-label="Diff for src/features/graph/GraphRow.tsx"]');
+  await expect(firstDiff).toBeVisible();
 
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('section[aria-label="Diff for src/features/graph/GraphRow.tsx"]')).toBeVisible();
+  await expect(secondDiff).toBeVisible();
   await page.keyboard.press('ArrowUp');
-  await expect(page.locator('section[aria-label="Diff for src/features/graph/CommitGraph.tsx"]')).toBeVisible();
+  await expect(firstDiff).toBeVisible();
 
-  await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('ArrowRight');
+  }
+  await expect(firstDiff).toBeVisible();
+  await expect(secondDiff).toHaveCount(0);
+  await expect(files).toBeFocused();
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('ArrowLeft');
+  }
+  await expect(firstDiff).toBeVisible();
+
+  await page.keyboard.press('Escape');
   await expect(page.locator('section[aria-label^="Diff for"]')).toHaveCount(0);
+  await expect(files).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
   await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(rows.nth(1).locator('button.font-mono')).toHaveText(secondHash);
   await page.keyboard.press('ArrowDown');

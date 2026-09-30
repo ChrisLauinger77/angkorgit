@@ -750,6 +750,7 @@ const SHORTCUTS: Array<[string, string[]]> = [
   ['Previous / next commit', ['↑ / ↓']],
   ['First / last commit', ['Home / End']],
   ['Open the commit\u2019s files / back to the graph', ['→ / ←']],
+  ['Next / previous change, wrapping (diff open)', ['→ / ←']],
   ['Previous / next file (file list)', ['↑ / ↓']],
   ['Search commits / find in diff', ['mod', 'F']],
   ['Previous match (find in diff)', ['⇧', '⏎']],
