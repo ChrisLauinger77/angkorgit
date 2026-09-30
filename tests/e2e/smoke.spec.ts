@@ -1907,7 +1907,7 @@ test('the All files view shows the whole working tree with changed files still a
   await expect(inspector.getByText('README.md')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'All files' }).click();
-  await expect(inspector.getByText('8 changed')).toBeVisible();
+  await expect(inspector.getByText('9 changed')).toBeVisible();
   await expect(inspector.getByText('README.md')).toBeVisible();
   await expect(inspector.getByLabel('Stage src/core/ipc.ts')).toBeVisible();
   await expect(inspector.getByLabel('Unstage src/features/graph/CommitGraph.tsx')).toBeVisible();
@@ -2101,4 +2101,28 @@ test('file history jumps between changes with N and P like the diff view', async
   await expect.poll(scrollTop).toBe(0);
   await history.getByRole('button', { name: 'Next change' }).click();
   await expect.poll(scrollTop).toBe(atChange);
+});
+
+test('ignore whitespace hides an indent-only change and turns staging off', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('indent.txt', { exact: true }).first().click();
+  const diff = page.locator('section[aria-label="Diff for src/indent.txt"]');
+  await expect(diff).toBeVisible();
+  await expect(diff.getByText('+1', { exact: true })).toBeVisible();
+  await expect(diff.getByRole('button', { name: 'Stage hunk' })).toBeVisible();
+
+  await diff.getByRole('button', { name: 'View options' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Ignore whitespace' }).click();
+  await expect(diff.getByText('+0', { exact: true })).toBeVisible();
+  await expect(diff.getByRole('button', { name: 'Stage hunk' })).toHaveCount(0);
+  await diff.getByRole('button', { name: 'View options' }).click();
+  await expect(page.getByRole('menu').getByText('not the patch git would apply')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await page.getByText('ipc.ts', { exact: true }).first().click();
+  const token = page.locator('section[aria-label="Diff for src/core/ipc.ts"]');
+  await expect(token.getByText('+16', { exact: true })).toBeVisible();
+  await expect(token.getByRole('button', { name: 'Stage hunk' })).toHaveCount(0);
 });
