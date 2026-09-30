@@ -8,7 +8,8 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ### Fixed
 - Long diff lines can be reached with a horizontal scrollbar or Shift+mouse-wheel in
-  inline and side-by-side views. The scrollbar stays visible while scrolling vertically.
+  inline and side-by-side views, including changes opened from a selected commit. The
+  scrollbar stays visible while scrolling vertically.
 
 ## [0.20.0] — 2026-09-30
 
