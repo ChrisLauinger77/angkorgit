@@ -1311,10 +1311,21 @@ features/
 │                               reaches the clipboard.
 │                               HEADER FITS NARROW PANELS (UX audit 2026-09-24): the h-10
 │                               header is `overflow-hidden whitespace-nowrap`, word diff /
-│                               wrap / whole file live in ONE "View options" DropdownMenu of
-│                               checkbox items (SlidersHorizontal trigger, tinted primary
-│                               when any is on; the large-file wrap note is a faint line in
-│                               the menu), and useCompactHeader (ResizeObserver on the
+│                               wrap / whole file / ignore whitespace live in ONE "View
+│                               options" DropdownMenu of checkbox items, each with an ICON IN
+│                               THE LEFT SLOT and the tick at the RIGHT END: the design-system
+│                               DropdownMenuCheckboxItem takes an `icon` prop — with it the item
+│                               lays out like DropdownMenuItem (px-2 gap-2, size-4 muted icon) and
+│                               renders the ItemIndicator as a trailing text-primary Check;
+│                               without it the old check-left pl-7 layout stays (Graph display
+│                               menu). PR #48 put icons AFTER the check slot, which read as a
+│                               double icon column next to the AI actions menu; a check + label
+│                               version without icons was tried next and the owner asked for the
+│                               icons back, aligned with the other menus (2026-09-30). The notes
+│                               (large-file wrap, whitespace staging) sit under a
+│                               DropdownMenuSeparator with pl-8 so they align with the labels
+│                               (SlidersHorizontal trigger, tinted primary when any is on), and
+│                               useCompactHeader (ResizeObserver on the
 │                               header, COMPACT_HEADER_WIDTH 960, data-diff-header
 │                               compact|full) hides the "n changes" text, sr-only's the "n
 │                               of m" counter and drops the Stage/Unstage label (icon +

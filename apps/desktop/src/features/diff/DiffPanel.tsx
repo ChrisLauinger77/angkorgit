@@ -518,30 +518,31 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
           </Hint>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>View options</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem className="gap-2" checked={wordDiff} onCheckedChange={(v) => setWordDiff(v === true)}>
-              <WholeWord className="size-4" /> Word diff
+            <DropdownMenuCheckboxItem icon={<WholeWord />} checked={wordDiff} onCheckedChange={(v) => setWordDiff(v === true)}>
+              Word diff
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem className="gap-2" checked={ignoreWhitespace} onCheckedChange={(v) => setIgnoreWhitespace(v === true)}>
-              <Space className="size-4" /> Ignore whitespace
+            <DropdownMenuCheckboxItem icon={<Space />} checked={ignoreWhitespace} onCheckedChange={(v) => setIgnoreWhitespace(v === true)}>
+              Ignore whitespace
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
-              className="gap-2"
+              icon={<WrapText />}
               checked={wrapLines}
               disabled={!!textDiff && wrapUnavailable(textDiff)}
               onCheckedChange={(v) => setWrapLines(v === true)}
             >
-              <WrapText className="size-4" /> Wrap long lines
+              Wrap long lines
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem className="gap-2" checked={fullFileDiff} onCheckedChange={(v) => setFullFileDiff(v === true)}>
-              <FileText className="size-4" /> Show whole file
+            <DropdownMenuCheckboxItem icon={<FileText />} checked={fullFileDiff} onCheckedChange={(v) => setFullFileDiff(v === true)}>
+              Show whole file
             </DropdownMenuCheckboxItem>
+            {(ignoreWhitespace || (textDiff && wrapUnavailable(textDiff))) && <DropdownMenuSeparator />}
             {ignoreWhitespace && (
-              <p className="max-w-56 px-2 pb-1.5 pt-1 text-[11px] leading-snug text-faint">
-                Hunk and line staging are off while whitespace is ignored, because these hunks are not the patch git would apply.
+              <p className="max-w-64 py-1 pl-8 pr-2 text-[11px] leading-snug text-faint">
+                Hunk and line staging are off: these hunks are not the patch git would apply.
               </p>
             )}
             {textDiff && wrapUnavailable(textDiff) && (
-              <p className="max-w-56 px-2 pb-1.5 pt-1 text-[11px] leading-snug text-faint">
+              <p className="max-w-64 py-1 pl-8 pr-2 text-[11px] leading-snug text-faint">
                 Wrapping stays off for large files so scrolling keeps up.
               </p>
             )}
