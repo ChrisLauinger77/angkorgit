@@ -15,6 +15,16 @@ All notable changes to AngKorGit are documented here. The format follows
   and ← to the previous one, the same jumps as N and P, wrapping around inside the file.
   ↑ and ↓ still switch files and Escape closes the diff, so a commit can be read from the
   keyboard alone.
+- **Switch repositories from the keyboard.** ⌘1 to ⌘9 (Ctrl on Windows and Linux) jump
+  to the nth tab and ⌘⇧[ / ⌘⇧] step through the tabs. Each repository can also get its
+  own key combination: right-click a tab or a recent repository and choose Keyboard
+  shortcut…, press the keys, and it switches to that repository from anywhere in the
+  app, opening it first when it is not open. Combinations need ⌃, ⌥ or ⌘ and cannot
+  collide with the app's own shortcuts. Tabs, the welcome page, the repository menu
+  and the palette show the assigned keys, and Settings → Shortcuts lists and removes
+  them.
+- **Tab menu.** Right-click a repository tab for Keyboard shortcut…, Copy path, Close
+  tab and Close other tabs.
 
 ## [0.19.0] — 2026-09-28
 

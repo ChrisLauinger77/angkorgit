@@ -103,6 +103,11 @@ export const demoRepo: RepositoryInfo = {
   mainPath: null,
 };
 
+export function demoRepoAt(path: string): RepositoryInfo {
+  if (path === demoRepo.path) return demoRepo;
+  return { ...demoRepo, path, name: path.split('/').filter(Boolean).pop() ?? path };
+}
+
 export const DEMO_LESS_PATH = 'styles/theme.less';
 export const DEMO_DOCKERFILE_PATH = 'Dockerfile';
 export const DEMO_INDENT_PATH = 'src/indent.txt';

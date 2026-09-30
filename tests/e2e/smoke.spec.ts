@@ -2141,3 +2141,50 @@ test('ignore whitespace hides an indent-only change and turns staging off', asyn
   await expect(token.getByText('+16', { exact: true })).toBeVisible();
   await expect(token.getByRole('button', { name: 'Stage hunk' })).toHaveCount(0);
 });
+
+test('tabs switch with mod+digit and a custom chord assigned from the tab menu', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByRole('option', { name: 'temple-ui' }).click();
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ControlOrMeta+Shift+BracketRight');
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ControlOrMeta+Shift+BracketRight');
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+
+  await tabs.nth(1).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Keyboard shortcut…' }).click();
+  const capture = page.getByRole('textbox', { name: 'Shortcut keys' });
+  await expect(capture).toBeFocused();
+  const save = page.getByRole('button', { name: 'Save' });
+  await page.keyboard.press('t');
+  await expect(capture).toHaveAttribute('data-shortcut-problem', 'no_modifier');
+  await expect(save).toBeDisabled();
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(capture).toHaveAttribute('data-shortcut-problem', 'reserved');
+  await expect(page.locator('[cmdk-input]')).toHaveCount(0);
+  await page.keyboard.press('Control+Shift+t');
+  await expect(capture).not.toHaveAttribute('data-shortcut-problem');
+  await save.click();
+  await expect(tabs.nth(1).locator('[data-tab-shortcut]')).toHaveText(/^(⌃⇧T|Ctrl\+Shift\+T)$/);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Control+Shift+t');
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Shortcuts', exact: true }).click();
+  await expect(dialog.locator('[data-repo-shortcuts]')).toContainText('temple-ui');
+  await dialog.getByRole('button', { name: 'Remove the shortcut for temple-ui' }).click();
+  await expect(dialog.getByText('No repository shortcuts yet')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(tabs.nth(1).locator('[data-tab-shortcut]')).toHaveCount(0);
+});
+

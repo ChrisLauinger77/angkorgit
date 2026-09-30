@@ -32,6 +32,7 @@ export type DialogKind =
   | 'createPullRequest'
   | 'cherryPick'
   | 'createWorktree'
+  | 'repoShortcut'
   | null;
 
 export interface CenterDiffTarget {
@@ -72,6 +73,10 @@ export interface ClonePreset {
   branch?: string;
 }
 
+export interface RepoShortcutPreset {
+  repoPath: string;
+}
+
 export interface SettingsPreset {
   section: 'appearance' | 'git' | 'accounts' | 'ai' | 'shortcuts';
 }
@@ -84,6 +89,7 @@ export type DialogContext =
   | CreateWorktreePreset
   | StashPreset
   | ClonePreset
+  | RepoShortcutPreset
   | null;
 
 interface UiState {
