@@ -36,6 +36,12 @@ All notable changes to AngKorGit are documented here. The format follows
   branch will be replaced with. The push-rejected dialog already explained itself and is
   unchanged.
 
+### Fixed
+- **Cursor CLI on Windows failed every AI request with "batch file arguments are
+  invalid".** Cursor installs a `cursor-agent.cmd` launcher there, and Rust refuses to hand
+  a multi-line prompt to a batch file. The app now runs the launcher's own `node.exe
+  index.js` entry directly, the way the launcher itself does. (#43)
+
 ## [0.19.0] — 2026-09-28
 
 The languages release. The diff highlighter learns Less, SCSS, Dockerfiles, Makefiles,
