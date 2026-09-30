@@ -2199,3 +2199,16 @@ test('tabs switch with mod+digit and a custom chord assigned from the tab menu',
   await expect(tabs.nth(1).locator('[data-tab-shortcut]')).toHaveCount(0);
 });
 
+test('force push from the push menu asks first', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Push options' }).click();
+  await page.getByRole('menuitem', { name: 'Force push' }).click();
+  const dialog = page.getByRole('dialog').filter({ hasText: 'Force push?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/origin\/main will be replaced/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Push (force) done')).toHaveCount(0);
+});

@@ -32,6 +32,9 @@ All notable changes to AngKorGit are documented here. The format follows
 ### Changed
 - The commit message editor's summary field wraps long first lines instead of scrolling
   them off to the side, so the start of a long summary can be reached with the mouse.
+- Force push from the Push menu asks for confirmation first and names what the remote
+  branch will be replaced with. The push-rejected dialog already explained itself and is
+  unchanged.
 
 ## [0.19.0] — 2026-09-28
 

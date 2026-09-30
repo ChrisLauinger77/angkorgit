@@ -432,6 +432,16 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
       await run(label, op);
       void import('@/features/forge/store').then(({ useForge }) => useForge.getState().load(true));
     })();
+  const confirmForcePush = async () => {
+    const branch = repo.headBranch ?? 'the current branch';
+    const ok = await confirmDialog({
+      title: 'Force push?',
+      description: `${remote}/${branch} will be replaced with your local ${branch}. Commits that exist only on the remote are lost, and anyone who pulled the branch will need to reset to it.`,
+      confirmLabel: 'Force push',
+      destructive: true,
+    });
+    if (ok) runPush('Push (force)', () => ipc.push(repo.path, remote, true, false, true));
+  };
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border-subtle bg-surface px-2">
@@ -554,7 +564,7 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => runPush('Push (force)', () => ipc.push(repo.path, remote, true, false, true))} destructive>
+            <DropdownMenuItem onClick={() => void confirmForcePush()} destructive>
               Force push
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => runPush('Push with tags', () => ipc.push(repo.path, remote, false, true, true))}>
