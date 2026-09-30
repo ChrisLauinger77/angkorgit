@@ -1725,15 +1725,26 @@ test('a diff selection keeps its lines after scrolling away and back', async ({ 
   }
 });
 
-test('an unpushed commit message can be edited in place while a pushed one cannot', async ({ page }) => {
+test('an unpushed commit message can be edited in place and a pushed one asks before rewriting', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();
   await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
   const inspector = page.getByRole('complementary', { name: 'Inspector' });
 
   await page.getByText('refactor(core): extract lane allocator').first().click();
-  await expect(inspector.getByRole('heading', { name: 'refactor(core): extract lane allocator' })).toBeVisible();
-  await expect(inspector.getByRole('button', { name: 'Edit commit message' })).toBeDisabled();
+  const pushedHeading = inspector.getByRole('heading', { name: 'refactor(core): extract lane allocator' });
+  await expect(pushedHeading).toBeVisible();
+  await inspector.getByRole('button', { name: 'Edit commit message' }).click();
+  await inspector.getByLabel('Commit summary').fill('refactor(core): extract lane allocator, reworded');
+  await inspector.getByRole('button', { name: 'Save message' }).click();
+  const rewrite = page.getByRole('dialog').filter({ hasText: 'Rewrite a pushed commit?' });
+  await expect(rewrite).toBeVisible();
+  await expect(rewrite.getByText('force push')).toBeVisible();
+  await rewrite.getByRole('button', { name: 'Cancel' }).click();
+  await expect(rewrite).toHaveCount(0);
+  await expect(inspector.getByLabel('Commit summary')).toHaveValue('refactor(core): extract lane allocator, reworded');
+  await inspector.getByLabel('Commit summary').press('Escape');
+  await expect(pushedHeading).toBeVisible();
 
   await page.getByText('feat(graph): virtualize commit rows').first().click();
   const heading = inspector.getByRole('heading', { name: 'feat(graph): virtualize commit rows' });

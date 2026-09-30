@@ -25,6 +25,13 @@ All notable changes to AngKorGit are documented here. The format follows
   them.
 - **Tab menu.** Right-click a repository tab for Keyboard shortcut…, Copy path, Close
   tab and Close other tabs.
+- **Edit the message of a pushed commit.** Edit commit message is no longer disabled once a
+  commit is on a remote. Saving asks first, because the branch then needs a force push and
+  anyone who pulled it has to reset.
+
+### Changed
+- The commit message editor's summary field wraps long first lines instead of scrolling
+  them off to the side, so the start of a long summary can be reached with the mouse.
 
 ## [0.19.0] — 2026-09-28
 
