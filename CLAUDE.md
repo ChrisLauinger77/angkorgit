@@ -665,9 +665,16 @@ components/                   ← RepoTabs (tab strip is overflow-x-auto with th
                                 scrollIntoView on switch; RIGHT-CLICK MENU (2026-09-30):
                                 Keyboard shortcut… / Copy path / Close tab / Close other
                                 tabs via the positioned-span DropdownMenu pattern; a tab
-                                with a repo shortcut shows it as plain 10px faint mono
-                                text (data-tab-shortcut) after the name — a bordered Kbd
-                                chip there read as odd to the owner (2026-09-30).
+                                with a repo shortcut shows it as a 9px mono PILL
+                                (bg-primary/15 text-primary, data-tab-shortcut) after the
+                                name on EVERY tab, active or not — a bordered Kbd chip
+                                and then plain faint text both read as odd to the owner
+                                (2026-09-30); the ACTIVE TAB is UNCHANGED — the plain
+                                dark bg-background fill — after two rejected variants
+                                the same day: a bg-primary/10 + text-primary tint like
+                                the HEAD branch row ("looks really bad") and then a 2px
+                                primary top edge ("just like previous one better"). Do
+                                not decorate the active tab.
                                 REPO SHORTCUTS (owner idea 2026-09-30, "map ALLA to A"):
                                 core shortcuts/chord.ts is the pure layer — KeyChord
                                 {key, ctrl, alt, shift, meta}, chordFromEvent reads the

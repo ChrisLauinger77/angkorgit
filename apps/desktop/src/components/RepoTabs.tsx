@@ -158,8 +158,8 @@ export function RepoTabs() {
               {shortcutFor(path) && (
                 <span
                   className={cn(
-                    'inline-flex h-4 shrink-0 items-center rounded px-1 font-mono text-[9px] font-medium tracking-wide transition-colors',
-                    active ? 'bg-primary/15 text-primary' : 'bg-foreground/[0.06] text-faint group-hover:text-muted',
+                    'inline-flex h-4 shrink-0 items-center rounded px-1 font-mono text-[9px] font-medium tracking-wide text-primary',
+                    active ? 'bg-primary/20' : 'bg-primary/15',
                   )}
                   data-tab-shortcut
                 >
