@@ -1378,15 +1378,8 @@ test('arrow keys walk from the graph into a commit\u2019s files and back', async
   await expect(firstDiff).toBeVisible();
   await expect(secondDiff).toHaveCount(0);
   await expect(files).toBeFocused();
-  for (let i = 0; i < 12; i++) {
-    await page.keyboard.press('ArrowLeft');
-  }
-  await expect(firstDiff).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  await expect(page.locator('section[aria-label^="Diff for"]')).toHaveCount(0);
-  await expect(files).toBeFocused();
   await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('section[aria-label^="Diff for"]')).toHaveCount(0);
   await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
   await expect(rows.nth(1).locator('button.font-mono')).toHaveText(secondHash);
   await page.keyboard.press('ArrowDown');

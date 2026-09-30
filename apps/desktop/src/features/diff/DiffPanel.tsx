@@ -217,7 +217,6 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
           skipInInput: true,
           handler: (event: KeyboardEvent) => {
             if (!arrowKeysBelongHere(event)) return;
-            if (stepChangeRef.current(-1)) return;
             useUi.getState().closeCenterDiff();
             useUi.getState().focusGraph();
           },

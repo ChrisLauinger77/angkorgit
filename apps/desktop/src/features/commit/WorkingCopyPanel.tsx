@@ -762,7 +762,6 @@ export function WorkingCopyPanel() {
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       e.stopPropagation();
-      if (useUi.getState().centerDiff && stepOpenDiffChange(-1) === 'stepped') return;
       useUi.getState().closeCenterDiff();
       useUi.getState().focusGraph();
       return;

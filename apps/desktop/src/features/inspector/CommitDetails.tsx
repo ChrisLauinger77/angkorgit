@@ -461,7 +461,6 @@ export function CommitDetails({
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       e.stopPropagation();
-      if (activeIndex >= 0 && stepOpenDiffChange(-1) === 'stepped') return;
       closeCenterDiff();
       useUi.getState().focusGraph();
     }
