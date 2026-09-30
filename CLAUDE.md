@@ -1325,8 +1325,10 @@ features/
 │                               double icon column next to the AI actions menu; a check + label
 │                               version without icons was tried next and the owner asked for the
 │                               icons back, aligned with the other menus (2026-09-30). The notes
-│                               (large-file wrap, whitespace staging) sit under a
-│                               DropdownMenuSeparator with pl-8 so they align with the labels
+│                               (large-file wrap, whitespace staging) render through DiffPanel's
+│                               MenuNote — a bg-surface-raised row with an Info icon, the DialogNote
+│                               motif — because a bare faint paragraph under a separator "looked
+│                               bad" to the owner once the items carried icons (2026-09-30)
 │                               (SlidersHorizontal trigger, tinted primary when any is on), and
 │                               useCompactHeader (ResizeObserver on the
 │                               header, COMPACT_HEADER_WIDTH 960, data-diff-header

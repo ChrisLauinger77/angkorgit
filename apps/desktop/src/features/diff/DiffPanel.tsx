@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Columns2, Copy, FileText, History, Minus, Plus, Rows3, SearchCheck, SlidersHorizontal, Space, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Columns2, Copy, FileText, History, Info, Minus, Plus, Rows3, SearchCheck, SlidersHorizontal, Space, Sparkles, TextSelect, Trash2, UserRoundSearch, WholeWord, WrapText, X } from 'lucide-react';
 import type { CommitFileInfo, FileDiff } from '@angkorgit/core';
 import { aiCapabilities, hasCommittedHistory, hasReviewableText, hashText, locateDiffLine, patchTextOf, PROJECT_REVIEW_FILE } from '@angkorgit/core';
 import {
@@ -65,6 +65,15 @@ const FILE_AI_TITLES: Record<FileAiKind, string> = {
 
 function fileAiIcon(kind: FileAiKind, className: string) {
   return kind === 'review' ? <SearchCheck className={className} /> : <Sparkles className={className} />;
+}
+
+function MenuNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-1 mb-0.5 mt-1 flex items-start gap-2 rounded-md bg-surface-raised px-2 py-1.5 text-[11px] leading-snug text-muted">
+      <Info className="mt-px size-3.5 shrink-0 text-faint" />
+      <span>{children}</span>
+    </div>
+  );
 }
 
 export function DiffPanel({ target }: { target: CenterDiffTarget }) {
@@ -515,7 +524,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
               </Button>
             </DropdownMenuTrigger>
           </Hint>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuLabel>View options</DropdownMenuLabel>
             <DropdownMenuCheckboxItem icon={<WholeWord />} checked={wordDiff} onCheckedChange={(v) => setWordDiff(v === true)}>
               Word diff
@@ -534,16 +543,11 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             <DropdownMenuCheckboxItem icon={<FileText />} checked={fullFileDiff} onCheckedChange={(v) => setFullFileDiff(v === true)}>
               Show whole file
             </DropdownMenuCheckboxItem>
-            {(ignoreWhitespace || (textDiff && wrapUnavailable(textDiff))) && <DropdownMenuSeparator />}
             {ignoreWhitespace && (
-              <p className="max-w-64 py-1 pl-8 pr-2 text-[11px] leading-snug text-faint">
-                Hunk and line staging are off: these hunks are not the patch git would apply.
-              </p>
+              <MenuNote>Staging is off: these hunks are not the patch git would apply.</MenuNote>
             )}
             {textDiff && wrapUnavailable(textDiff) && (
-              <p className="max-w-64 py-1 pl-8 pr-2 text-[11px] leading-snug text-faint">
-                Wrapping stays off for large files so scrolling keeps up.
-              </p>
+              <MenuNote>Wrapping stays off for large files so scrolling keeps up.</MenuNote>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
