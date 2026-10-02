@@ -2884,10 +2884,7 @@ update CLAUDE.md or docs/ — never the code.
   compositing hint WebKit REPAINTED the text layer every frame (Chromium trace: 78
   paints per 80 events → 15 with will-change), so any accumulated main-thread load
   hits sideways scrolling first while vertical scrolling stays on the scrolling
-  thread. A sticky horizontal scrollbar proxies the pan offset in inline and split
-  views (both split panes stay synchronized); Shift+wheel also pans. Keep this bar
-  inside the virtual diff root so it stays at the viewport bottom during vertical
-  scrolling. useHorizontalPan therefore sets `willChange: 'transform'` on the layers
+  thread. useHorizontalPan therefore sets `willChange: 'transform'` on the layers
   and caches the pan limit per gesture (a ResizeObserver on the panes invalidates
   it) instead of forcing layout twice per wheel event; with a 12 ms/frame busy loop
   the 80-event delivery went 2.1 s → 1.4 s. No frontend leak was found (30 cycles of
@@ -2900,7 +2897,10 @@ update CLAUDE.md or docs/ — never the code.
   Playwright's `webkit`, add the synthetic file to demo.ts TEMPORARILY, sample rAF
   gaps while dispatching `page.mouse.wheel`, and put the mouse over the VISIBLE
   scroller rect — the diff auto-jump scrolls the pane, so a pane-relative y lands
-  off screen and every event silently misses.
+  off screen and every event silently misses. A sticky horizontal scrollbar proxies
+  the pan offset in inline and split views (both split panes stay synchronized);
+  Shift+wheel also pans. Keep this bar inside the virtual diff root so it stays at
+  the viewport bottom during vertical scrolling.
 
 - **G47 — a DOM selection does not survive virtualized rows; keep it in data space**:
   the diff rows are absolutely positioned and unmount as they leave the overscan
