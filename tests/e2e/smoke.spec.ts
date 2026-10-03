@@ -1601,9 +1601,11 @@ test('the remotes section offers Add remote and opens the add dialog', async ({ 
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();
   await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
-  const remotesHeader = page.getByRole('button', { name: /^Remotes/ });
-  await remotesHeader.hover();
-  await page.getByRole('button', { name: 'Add remote', exact: true }).click({ force: true });
+  const remotesSection = page.locator('[data-sidebar-section-header]').filter({
+    has: page.getByRole('button', { name: /^Remotes/ }),
+  });
+  await remotesSection.hover();
+  await remotesSection.getByRole('button', { name: 'Add remote', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Add remote' })).toBeVisible();
   await expect(dialog.getByPlaceholder('upstream')).toBeVisible();
