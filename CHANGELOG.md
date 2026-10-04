@@ -13,6 +13,9 @@ All notable changes to AngKorGit are documented here. The format follows
 - JPEG, GIF, WebP, BMP, ICO and AVIF images in a diff painted blank, because every
   non-SVG image was sent to the webview as `image/png`. Each extension now gets its own
   media type. (#51)
+- The pull request dialog could be filled out on a branch that was never pushed, only to
+  find Create disabled at the end. The note now carries a Push button that pushes the
+  branch with its upstream and enables Create, keeping the title and description. (#54)
 
 ## [0.20.0] — 2026-09-30
 
