@@ -2184,6 +2184,13 @@ test('tabs switch with mod+digit and a custom chord assigned from the tab menu',
   await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('Control+Shift+t');
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ControlOrMeta+w');
+  await expect(tabs).toHaveCount(1);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByRole('option', { name: 'temple-ui' }).click();
+  await expect(tabs).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -2281,4 +2288,164 @@ test('the code diff opened from a selected commit scrolls horizontally in both v
     expect(new Set(transforms).size).toBe(1);
     expect(transforms[0]).toMatch(/translateX\(-/);
   }
+});
+
+test('repositories can be grouped on the welcome page and a group opens as tabs', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Recent repositories')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-group-header]')).toHaveCount(0);
+
+  const temple = page.locator('[data-recent-row="/Users/demo/projects/temple-ui"]');
+  await temple.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Add to group' }).hover();
+  await page.getByRole('menuitem', { name: 'New group…' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'New group' })).toBeVisible();
+  const name = dialog.getByLabel('Name');
+  await expect(name).toBeFocused();
+  const create = dialog.getByRole('button', { name: 'Create group' });
+  await expect(create).toBeDisabled();
+  await name.fill('Frontend');
+  await dialog.getByRole('radio', { name: 'Teal' }).click();
+  await create.click();
+  await expect(dialog).toBeHidden();
+
+  const frontend = page.locator('[data-group-header]', { hasText: 'Frontend' });
+  await expect(frontend).toBeVisible();
+  await expect(frontend.getByText('1', { exact: true })).toBeVisible();
+  const other = page.locator('[data-group-header]', { hasText: 'Other' });
+  await expect(other.getByText('3', { exact: true })).toBeVisible();
+
+  const angkor = page.locator('[data-recent-row="/Users/demo/projects/angkorgit"]');
+  await angkor.dragTo(frontend);
+  await expect(frontend.getByText('2', { exact: true })).toBeVisible();
+  await expect(other.getByText('2', { exact: true })).toBeVisible();
+
+  const billing = page.locator('[data-recent-row="/Users/demo/work/billing-service"]');
+  await billing.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Add to group' }).hover();
+  await page.getByRole('menuitem', { name: 'New group…' }).click();
+  await dialog.getByLabel('Name').fill('frontend');
+  await expect(dialog.getByText('A group with this name already exists')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Create group' })).toBeDisabled();
+  await dialog.getByLabel('Name').fill('Backend');
+  await dialog.getByLabel('Name').press('Enter');
+  await expect(dialog).toBeHidden();
+  const backend = page.locator('[data-group-header]', { hasText: 'Backend' });
+  await expect(backend.getByText('1', { exact: true })).toBeVisible();
+  const headers = page.locator('[data-group-header]');
+  await expect(headers.nth(0)).toContainText('Frontend');
+  await backend.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Move down' })).toBeDisabled();
+  await page.getByRole('menuitem', { name: 'Move up' }).click();
+  await expect(headers.nth(0)).toContainText('Backend');
+  await backend.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Move up' })).toBeDisabled();
+  await page.getByRole('menuitem', { name: 'Move down' }).click();
+  await expect(headers.nth(0)).toContainText('Frontend');
+  await backend.dragTo(frontend, { targetPosition: { x: 200, y: 3 } });
+  await expect(headers.nth(0)).toContainText('Backend');
+  await frontend.dragTo(backend, { targetPosition: { x: 200, y: 3 } });
+  await expect(headers.nth(0)).toContainText('Frontend');
+
+  await backend.getByRole('button', { name: 'Backend', exact: true }).click();
+  await expect(billing).toBeHidden();
+  await backend.getByRole('button', { name: 'Backend', exact: true }).click();
+  await expect(billing).toBeVisible();
+
+  await page.getByLabel('Search recent repositories').fill('front');
+  await expect(page.locator('[data-group-header]')).toHaveCount(0);
+  await expect(page.locator('[data-recent-row]')).toHaveCount(2);
+  await page.getByLabel('Search recent repositories').fill('');
+  await expect(page.locator('[data-group-header]')).toHaveCount(3);
+
+  await frontend.hover();
+  await frontend.getByRole('button', { name: 'Frontend group actions' }).click();
+  await page.getByRole('menuitem', { name: 'Open all in tabs' }).click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs.nth(0)).toHaveAttribute('title', /· Frontend/);
+
+  await tabs.nth(1).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Move to group' }).hover();
+  await page.getByRole('menuitem', { name: 'Backend' }).click();
+  await expect(tabs.nth(1)).toHaveAttribute('title', /· Backend/);
+  const clusters = page.locator('[data-tab-cluster]');
+  await expect(clusters).toHaveCount(2);
+  await expect(clusters.nth(0)).toContainText('angkorgit');
+  await expect(clusters.nth(1)).toContainText('temple-ui');
+  const frontendChip = clusters.nth(0).locator('[data-tab-group]');
+  const backendChip = clusters.nth(1).locator('[data-tab-group]');
+  await expect(frontendChip).toHaveText('Frontend');
+  await backendChip.click();
+  await expect(tabs).toHaveCount(1);
+  await expect(backendChip).toHaveText('Backend1');
+  await frontendChip.click();
+  await expect(tabs).toHaveCount(1);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ControlOrMeta+2');
+  await expect(page.locator('[data-tab-path="/Users/demo/projects/temple-ui"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs).toHaveCount(1);
+  await frontendChip.click();
+  await backendChip.click();
+  await expect(tabs).toHaveCount(2);
+  await expect(page.locator('[data-tab-separator]')).toHaveCount(0);
+  await expect(page.locator('[data-tab-overflow]')).toHaveCount(0);
+  await backendChip.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Close its tabs' })).toContainText('1');
+  await page.getByRole('menuitem', { name: 'Collapse other groups' }).click();
+  await expect(frontendChip).toHaveText('Frontend1');
+  await expect(tabs).toHaveCount(1);
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(tabs).toHaveCount(1);
+  await expect(page.locator('[data-tab-path="/Users/demo/projects/angkorgit"]')).toHaveAttribute('aria-selected', 'true');
+  await frontendChip.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Expand all groups' }).click();
+  await expect(tabs).toHaveCount(2);
+  await backendChip.dragTo(clusters.nth(0), { targetPosition: { x: 4, y: 20 } });
+  await expect(clusters.nth(0)).toContainText('Backend');
+  await expect(clusters.nth(1)).toContainText('Frontend');
+  await expect(tabs.nth(0)).toHaveAttribute('title', /temple-ui/);
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(page.locator('[data-tab-path="/Users/demo/projects/temple-ui"]')).toHaveAttribute('aria-selected', 'true');
+  await page.locator('[data-tab-cluster]').nth(1).locator('[data-tab-group]').dragTo(clusters.nth(0), { targetPosition: { x: 4, y: 20 } });
+  await expect(clusters.nth(0)).toContainText('Frontend');
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(page.locator('[data-tab-path="/Users/demo/projects/angkorgit"]')).toHaveAttribute('aria-selected', 'true');
+  await page.setViewportSize({ width: 380, height: 900 });
+  const overflow = page.locator('[data-tab-overflow]');
+  await expect(overflow).toBeVisible();
+  await overflow.click();
+  const overflowMenu = page.getByRole('menu');
+  await expect(overflowMenu.getByText('Frontend', { exact: true })).toBeVisible();
+  await overflowMenu.getByRole('menuitem', { name: 'temple-ui' }).click();
+  await expect(page.locator('[data-tab-path="/Users/demo/projects/temple-ui"]')).toHaveAttribute('aria-selected', 'true');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(overflow).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Switch repository' }).click();
+  const menu = page.getByRole('menu');
+  await expect(menu.locator('[data-switcher-group="Frontend"]')).toContainText('angkorgit');
+  await expect(menu.locator('[data-switcher-group="Backend"]')).toContainText('temple-ui');
+  await expect(menu.locator('[data-switcher-group="Other"]')).toContainText('api-gateway');
+  await page.keyboard.press('Escape');
+
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.locator('[cmdk-input]').fill('backend');
+  await expect(page.getByRole('option', { name: /Open all in Backend/ })).toContainText('2 repositories');
+  await page.getByRole('option', { name: /Close all in Backend/ }).click();
+  await expect(tabs).toHaveCount(1);
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(page.getByText('Recent repositories')).toBeVisible();
+  await frontend.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Ungroup…' }).click();
+  await expect(page.getByRole('heading', { name: 'Ungroup “Frontend”?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ungroup', exact: true }).click();
+  await expect(frontend).toBeHidden();
+  await expect(page.locator('[data-recent-row="/Users/demo/projects/angkorgit"]')).toBeVisible();
+  await expect(backend.getByText('2', { exact: true })).toBeVisible();
 });

@@ -6,10 +6,41 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Repository groups.** Repositories on the welcome page can be sorted into named
+  groups, such as Frontend, Backend, Work or Personal. Right-click a recent repository
+  or a tab and choose Add to group, or drag a repository onto a group. Each group is a
+  collapsible section with its own colour and a count, repositories outside any group
+  stay under Other, and nothing changes until the first group is created. A group's menu
+  opens every repository in it as tabs in one go, closes those tabs again, renames or
+  recolours it, or ungroups it without touching the repositories. The repository menu in
+  the toolbar lists repositories under their group, the palette offers Open all in and
+  Close all in for each group and finds repositories by group name, tab tooltips name the
+  group, and a worktree follows its main repository's group.
+- **Tab groups in the tab strip.** Open tabs cluster by group, each group marked by a
+  thin edge in its colour above the tabs and its name in small coloured type at the
+  front, while repositories outside any group stay plain. Click the name to collapse the
+  group to its name and a count, so a dozen open repositories fold into three or four
+  labels; the active tab always stays visible. Drag a tab into another group or onto its name to move the repository into
+  that group, or next to an ungrouped tab to take it out. Right-click the name to collapse or
+  expand the group, collapse every other group, open the rest of its repositories,
+  close its tabs, edit it or ungroup it. ⌘1 to ⌘9 and ⌘⇧[ / ⌘⇧] follow the order on screen. Groups
+  keep the order you give them: drag a group's name onto another group in the strip, or drag a
+  group header on the welcome page (its menu has Move up and Move down too), and every
+  list follows.
+- **⌘W closes the current tab** (Ctrl+W on Windows and Linux), the way browsers and
+  GitKraken do. Closing the last tab returns to the welcome page. Inside the terminal the
+  keys still reach the shell.
+- **A tab strip that stays readable.** Thin separators sit between neighbouring tabs and
+  step aside next to the active one, and once tabs overflow the window a list button appears at the end of the strip with
+  every open tab by group, so a tab that scrolled out of view is one click away.
+
 ### Fixed
 - Long diff lines can be reached with a horizontal scrollbar or Shift+mouse-wheel in
   inline and side-by-side views, including changes opened from a selected commit. The
   scrollbar stays visible while scrolling vertically.
+- Typing a conventional prefix such as `fix:` in the commit summary no longer comes back
+  as `Fix:` from the field's automatic capitalisation. Spell check stays on.
 - JPEG, GIF, WebP, BMP, ICO and AVIF images in a diff painted blank, because every
   non-SVG image was sent to the webview as `image/png`. Each extension now gets its own
   media type. (#51)
