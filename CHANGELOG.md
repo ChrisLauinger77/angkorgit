@@ -10,6 +10,9 @@ All notable changes to AngKorGit are documented here. The format follows
 - Long diff lines can be reached with a horizontal scrollbar or Shift+mouse-wheel in
   inline and side-by-side views, including changes opened from a selected commit. The
   scrollbar stays visible while scrolling vertically.
+- JPEG, GIF, WebP, BMP, ICO and AVIF images in a diff painted blank, because every
+  non-SVG image was sent to the webview as `image/png`. Each extension now gets its own
+  media type. (#51)
 
 ## [0.20.0] — 2026-09-30
 
