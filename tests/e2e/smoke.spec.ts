@@ -2216,6 +2216,49 @@ test('force push from the push menu asks first', async ({ page }) => {
   await expect(page.getByText('Push (force) done')).toHaveCount(0);
 });
 
+test('dragging a diff selection past the right edge pans the long lines and extends the selection', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await page.getByText('palette-seed.sql').first().click();
+  await expect(page.getByText('temple gold').first()).toBeVisible();
+  const diff = page.locator('section[aria-label^="Diff for"]');
+  await diff.getByRole('button', { name: 'Inline diff', exact: true }).click();
+  const pane = diff.locator('[data-diff-pane]').first();
+  const layer = pane.locator('[data-diff-layer]');
+  await expect(layer).toHaveAttribute('style', /translateX\(0px\)|translateX\(-0px\)/);
+  const paneBox = (await pane.boundingBox())!;
+  const scroller = diff.locator('div.overflow-y-auto');
+  const start = await scroller.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const rows = Array.from(el.querySelectorAll<HTMLElement>('[data-diff-row]')).filter((row) => {
+      const rect = row.getBoundingClientRect();
+      return rect.top > box.top + 40 && rect.bottom < box.bottom - 40 && (row.textContent ?? '').length > 60;
+    });
+    const row = rows[0];
+    if (!row) return null;
+    const rect = row.getBoundingClientRect();
+    return { x: rect.left + 20, y: rect.top + rect.height / 2 };
+  });
+  if (!start) throw new Error('no diff row to start from');
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 80, start.y, { steps: 4 });
+  await page.mouse.move(paneBox.x + paneBox.width + 60, start.y, { steps: 4 });
+  await expect
+    .poll(() => layer.evaluate((el) => Math.abs(parseFloat(/translateX\((-?[\d.]+)px\)/.exec((el as HTMLElement).style.transform)?.[1] ?? '0'))))
+    .toBeGreaterThan(60);
+  const panned = await layer.evaluate((el) => Math.abs(parseFloat(/translateX\((-?[\d.]+)px\)/.exec((el as HTMLElement).style.transform)?.[1] ?? '0')));
+  const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '');
+  expect(selected.length).toBeGreaterThan(40);
+  await page.mouse.move(start.x + 100, start.y, { steps: 2 });
+  await page.waitForTimeout(120);
+  expect(await layer.evaluate((el) => Math.abs(parseFloat(/translateX\((-?[\d.]+)px\)/.exec((el as HTMLElement).style.transform)?.[1] ?? '0')))).toBe(panned);
+  await page.mouse.up();
+  expect(await diff.getByLabel('Scroll diff horizontally').evaluate((el) => el.scrollLeft)).toBeGreaterThan(50);
+});
+
 test('long diff lines have a sticky horizontal scrollbar and support Shift+wheel', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 900 });
   await page.goto('/');
@@ -2286,7 +2329,27 @@ test('a trackpad pan moves the long-line diff by the whole gesture without stepp
   });
   expect(steps.filter((step) => step < 0)).toEqual([]);
   expect(steps.reduce((sum, step) => sum + step, 0)).toBeCloseTo(72, 0);
-  await expect.poll(() => diff.getByLabel('Scroll diff horizontally').evaluate((el) => el.scrollLeft)).toBeGreaterThan(70);
+  const engine = diff.getByLabel('Scroll diff horizontally');
+  await expect.poll(() => engine.evaluate((el) => el.scrollLeft)).toBeGreaterThan(70);
+
+  const bar = diff.locator('[data-diff-scrollbar]');
+  const thumb = diff.locator('[data-diff-scrollbar-thumb]');
+  await expect(thumb).toBeVisible();
+  const before = await thumb.boundingBox();
+  await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before!.x + before!.width / 2 + 60, before!.y + before!.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const dragged = await engine.evaluate((el) => el.scrollLeft);
+  expect(dragged).toBeGreaterThan(80);
+  expect((await thumb.boundingBox())!.x).toBeGreaterThan(before!.x + 20);
+  await expect.poll(() => diff.locator('[data-diff-layer]').first().evaluate((el) => (el as HTMLElement).style.transform)).toBe(`translateX(-${dragged}px)`);
+
+  await expect(bar).toBeVisible();
+  const moved = await thumb.boundingBox();
+  await page.mouse.click(moved!.x - 8, moved!.y + moved!.height / 2);
+  await expect.poll(() => engine.evaluate((el) => el.scrollLeft)).toBe(0);
+  await expect.poll(() => diff.locator('[data-diff-layer]').first().evaluate((el) => (el as HTMLElement).style.transform)).toBe('translateX(0px)');
 });
 
 test('the code diff opened from a selected commit scrolls horizontally in both views', async ({ page }) => {

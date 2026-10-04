@@ -11,6 +11,12 @@ All notable changes to AngKorGit are documented here. The format follows
   new scrollbar echoed every position back into the pan, so a trackpad gesture moved the
   code forward one frame and back the next and only about half of it landed. The pan now
   ignores its own scrollbar echo, so the code follows the gesture pixel for pixel again.
+- The horizontal scrollbar under a long-line diff had no visible thumb on macOS, so there
+  was nothing to grab with a mouse. The bar now draws its own thumb: drag it, click the
+  track to page, or scroll over it, and it stays visible instead of fading out.
+- Selecting text in a long-line diff and dragging past the right edge of the code now pans
+  the lines along with the pointer and keeps extending the selection, the way an editor
+  does. Before, the drag stopped at the edge and nothing moved.
 
 ## [0.21.0] — 2026-10-04
 

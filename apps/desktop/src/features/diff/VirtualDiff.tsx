@@ -5,6 +5,9 @@ import { clipRenderedLine } from '@angkorgit/core';
 import { cn } from '@angkorgit/design-system';
 import { CodeLine, lineBg, pairHunkLines, type SearchRanges } from './diffShared';
 import { useStableSelection } from './diffSelection';
+import { panControllers } from './pan';
+
+export { panControllers };
 
 export const LINE_H = 20;
 const BLANK_ANCHOR = '\u200b';
@@ -117,6 +120,8 @@ function* rowContents(rows: FlatRow[]): Iterable<string> {
   }
 }
 
+const SCROLLBAR_H = 12;
+const THUMB_MIN = 24;
 const ROW_W: React.CSSProperties = { minWidth: '100%', width: 'max-content' };
 
 const GutterCell = memo(function GutterCell({
@@ -259,8 +264,6 @@ function useDiffVirtualizer(rows: FlatRow[], scrollRef: React.RefObject<HTMLDivE
   });
 }
 
-export const panControllers = new WeakMap<HTMLElement, (dx: number) => void>();
-
 function useHorizontalPan(
   panes: React.RefObject<HTMLDivElement>[],
   layers: React.RefObject<HTMLDivElement>[],
@@ -280,12 +283,21 @@ function useHorizontalPan(
       }
       const limit = Math.max(0, w - pane.clientWidth);
       const scrollbar = scrollbarRef.current;
-      if (scrollbar?.firstElementChild) {
+      if (scrollbar?.firstElementChild && scrollbar.parentElement) {
         (scrollbar.firstElementChild as HTMLElement).style.width = `${scrollbar.clientWidth + limit}px`;
-        scrollbar.style.height = limit > 0 ? '12px' : '0px';
+        scrollbar.parentElement.style.height = limit > 0 ? `${SCROLLBAR_H}px` : '0px';
         scrollbar.tabIndex = limit > 0 ? 0 : -1;
       }
       return limit;
+    };
+    const thumb = scrollbarRef.current?.parentElement?.querySelector<HTMLElement>('[data-diff-scrollbar-thumb]') ?? null;
+    const placeThumb = (limit: number) => {
+      const scrollbar = scrollbarRef.current;
+      if (!scrollbar || !thumb) return;
+      const track = scrollbar.clientWidth;
+      const thumbWidth = limit > 0 ? Math.max(THUMB_MIN, (track * track) / (track + limit)) : 0;
+      thumb.style.width = `${thumbWidth}px`;
+      thumb.style.transform = `translateX(${limit > 0 ? (x.current / limit) * (track - thumbWidth) : 0}px)`;
     };
     const maxX = () => {
       if (limit === null) limit = measureLimit();
@@ -300,8 +312,10 @@ function useHorizontalPan(
     };
     const apply = () => {
       raf = 0;
-      x.current = Math.min(x.current, maxX());
+      const limit = maxX();
+      x.current = Math.min(x.current, limit);
       syncScrollbar();
+      placeThumb(limit);
       for (const layer of layers) {
         if (layer.current) layer.current.style.transform = `translateX(${-x.current}px)`;
       }
@@ -355,17 +369,66 @@ function useHorizontalPan(
 }
 
 function HorizontalScrollbar({ scrollbarRef }: { scrollbarRef: React.RefObject<HTMLDivElement> }) {
+  const drag = useRef<{ startX: number; startLeft: number; ratio: number } | null>(null);
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    drag.current = null;
+    delete event.currentTarget.dataset.dragging;
+  };
   return (
     <div
-      ref={scrollbarRef}
-      aria-label="Scroll diff horizontally"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) event.stopPropagation();
+      data-diff-scrollbar
+      className="group/scrollbar sticky bottom-0 z-10 h-3 shrink-0 bg-surface"
+      onWheel={(event) => {
+        const scrollbar = scrollbarRef.current;
+        if (!scrollbar) return;
+        const delta = event.deltaX !== 0 ? event.deltaX : event.shiftKey ? event.deltaY : 0;
+        if (delta) scrollbar.scrollLeft += delta;
       }}
-      className="sticky bottom-0 z-10 h-3 shrink-0 overflow-x-auto overflow-y-hidden bg-surface"
+      onPointerDown={(event) => {
+        const scrollbar = scrollbarRef.current;
+        const thumb = event.currentTarget.querySelector<HTMLElement>('[data-diff-scrollbar-thumb]');
+        if (!scrollbar || !thumb || event.button !== 0) return;
+        event.preventDefault();
+        scrollbar.focus({ preventScroll: true });
+        const rect = thumb.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right) {
+          scrollbar.scrollLeft += event.clientX < rect.left ? -scrollbar.clientWidth : scrollbar.clientWidth;
+          return;
+        }
+        const track = scrollbar.clientWidth - rect.width;
+        drag.current = {
+          startX: event.clientX,
+          startLeft: scrollbar.scrollLeft,
+          ratio: track > 0 ? (scrollbar.scrollWidth - scrollbar.clientWidth) / track : 0,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.dataset.dragging = '';
+      }}
+      onPointerMove={(event) => {
+        const scrollbar = scrollbarRef.current;
+        const current = drag.current;
+        if (!scrollbar || !current) return;
+        scrollbar.scrollLeft = current.startLeft + (event.clientX - current.startX) * current.ratio;
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
     >
-      <div className="h-px" />
+      <div
+        ref={scrollbarRef}
+        aria-label="Scroll diff horizontally"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) event.stopPropagation();
+        }}
+        className="scrollbar-none h-full overflow-x-auto overflow-y-hidden"
+      >
+        <div className="h-px" />
+      </div>
+      <div
+        data-diff-scrollbar-thumb
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-[3px] h-1.5 rounded-full bg-foreground/20 transition-colors group-hover/scrollbar:bg-foreground/35 group-data-[dragging]/scrollbar:bg-foreground/45"
+      />
     </div>
   );
 }
