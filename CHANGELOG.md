@@ -6,6 +6,15 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-10-04
+
+The groups release. Repositories can be sorted into named groups, on the welcome page and
+in the tab strip, where each group gets a colour, a name and a collapse toggle so a dozen
+open tabs fold into three or four labels. ⌘W closes a tab. Long diff lines get a real
+horizontal scrollbar from a contributor, the commit box stops capitalising conventional
+prefixes, images other than PNG paint again in the diff, and the pull request dialog can
+push an unpushed branch itself.
+
 ### Added
 - **Repository groups.** Repositories on the welcome page can be sorted into named
   groups, such as Frontend, Backend, Work or Personal. Right-click a recent repository
@@ -1602,7 +1611,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/cheat2001/angkorgit/compare/v0.17.0...v0.18.0
