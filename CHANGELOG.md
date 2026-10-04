@@ -6,6 +6,12 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-10-04
+
+A patch for the horizontal scrollbar that 0.21.0 introduced. On macOS it halved every
+trackpad pan and drew no thumb to grab, and dragging a text selection past the edge of
+the code did not pan the lines. All three are fixed; nothing else changes.
+
 ### Fixed
 - Horizontal scrolling in a diff with long lines felt heavy and jittery since 0.21.0: the
   new scrollbar echoed every position back into the pan, so a trackpad gesture moved the
@@ -1623,7 +1629,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/cheat2001/angkorgit/compare/v0.18.0...v0.19.0
