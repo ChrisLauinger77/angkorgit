@@ -291,12 +291,17 @@ function useHorizontalPan(
       if (limit === null) limit = measureLimit();
       return limit;
     };
+    let echoed = -1;
+    const syncScrollbar = () => {
+      const scrollbar = scrollbarRef.current;
+      if (!scrollbar) return;
+      if (Math.abs(scrollbar.scrollLeft - x.current) >= 1) scrollbar.scrollLeft = x.current;
+      echoed = scrollbar.scrollLeft;
+    };
     const apply = () => {
       raf = 0;
-      const limit = maxX();
-      const scrollbar = scrollbarRef.current;
-      x.current = Math.min(x.current, limit);
-      if (scrollbar && scrollbar.scrollLeft !== x.current) scrollbar.scrollLeft = x.current;
+      x.current = Math.min(x.current, maxX());
+      syncScrollbar();
       for (const layer of layers) {
         if (layer.current) layer.current.style.transform = `translateX(${-x.current}px)`;
       }
@@ -317,7 +322,11 @@ function useHorizontalPan(
       if (!raf) raf = requestAnimationFrame(apply);
     };
     const onScroll = () => {
-      x.current = scrollbarRef.current?.scrollLeft ?? 0;
+      const left = scrollbarRef.current?.scrollLeft ?? 0;
+      if (left === echoed) return;
+      echoed = left;
+      x.current = left;
+      if (raf) cancelAnimationFrame(raf);
       apply();
     };
     const scrollbar = scrollbarRef.current;

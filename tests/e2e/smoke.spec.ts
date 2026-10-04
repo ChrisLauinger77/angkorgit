@@ -2260,6 +2260,35 @@ test('long diff lines have a sticky horizontal scrollbar and support Shift+wheel
   await expect(scrollbar).toHaveCount(0);
 });
 
+test('a trackpad pan moves the long-line diff by the whole gesture without stepping back', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await page.getByText('palette-seed.sql').first().click();
+  await expect(page.getByText('temple gold').first()).toBeVisible();
+  const diff = page.locator('section[aria-label^="Diff for"]');
+  await diff.getByRole('button', { name: 'Inline diff', exact: true }).click();
+  await expect(diff.getByLabel('Scroll diff horizontally')).toBeVisible();
+
+  const steps = await diff.locator('[data-diff-pane]').first().evaluate(async (pane) => {
+    const layer = pane.querySelector('[data-diff-layer]') as HTMLElement;
+    const read = () => Math.abs(parseFloat(/translateX\((-?[\d.]+)px\)/.exec(layer.style.transform)?.[1] ?? '0'));
+    const positions: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      pane.dispatchEvent(new WheelEvent('wheel', { deltaX: 2.4, deltaY: 0.3, bubbles: true, cancelable: true }));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      positions.push(read());
+    }
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    positions.push(read());
+    return positions.map((value, index) => value - (positions[index - 1] ?? 0));
+  });
+  expect(steps.filter((step) => step < 0)).toEqual([]);
+  expect(steps.reduce((sum, step) => sum + step, 0)).toBeCloseTo(72, 0);
+  await expect.poll(() => diff.getByLabel('Scroll diff horizontally').evaluate((el) => el.scrollLeft)).toBeGreaterThan(70);
+});
+
 test('the code diff opened from a selected commit scrolls horizontally in both views', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

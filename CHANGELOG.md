@@ -6,6 +6,12 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Horizontal scrolling in a diff with long lines felt heavy and jittery since 0.21.0: the
+  new scrollbar echoed every position back into the pan, so a trackpad gesture moved the
+  code forward one frame and back the next and only about half of it landed. The pan now
+  ignores its own scrollbar echo, so the code follows the gesture pixel for pixel again.
+
 ## [0.21.0] — 2026-10-04
 
 The groups release. Repositories can be sorted into named groups, on the welcome page and
