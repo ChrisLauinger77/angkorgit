@@ -6,6 +6,10 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Opening the terminal now focuses its input immediately, so typing works without
+  clicking inside it first.
+
 ### Changed
 - **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged.
 
