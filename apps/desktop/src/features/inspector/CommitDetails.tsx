@@ -403,7 +403,7 @@ export function CommitDetails({
     (index: number) => {
       const d = shownDiffs[index];
       if (!d) return;
-      openCenterDiff({ path: d.path, oid: d.sourceOid ?? commit.oid, oldPath: d.oldPath });
+      openCenterDiff({ path: d.path, oid: d.sourceOid ?? commit.oid, oldPath: d.oldPath, stash: !!stash });
       requestAnimationFrame(() => {
         filesRef.current?.querySelector('[data-active-file]')?.scrollIntoView({ block: 'nearest' });
       });
@@ -532,7 +532,7 @@ export function CommitDetails({
               return;
             }
             if (active) closeCenterDiff();
-            else openCenterDiff({ path: diff.path, oid: diffOid, oldPath: diff.oldPath });
+            else openCenterDiff({ path: diff.path, oid: diffOid, oldPath: diff.oldPath, stash: !!stash });
           }}
         >
           <ChangeMark tone={meta?.tone ?? 'neutral'} title={meta?.label}>

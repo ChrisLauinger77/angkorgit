@@ -1077,6 +1077,82 @@ test('the all files layout stacks every commit file and follows the file list', 
   await expect(view).toBeHidden();
 });
 
+test('clicking a file in the inspector still jumps to it after scrolling reached it once', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('row').nth(2).click();
+  await page.getByLabel('Commit files').getByRole('button', { name: /CommitGraph\.tsx/ }).click();
+  await page.getByRole('button', { name: 'Show all files' }).click();
+  const view = page.locator('[data-all-changes]');
+  const scroller = view.locator('[data-all-changes-scroller]');
+  await expect(view.locator('[data-file-diff]').first()).toBeVisible();
+  const topOf = async (path: string) => {
+    const box = await view.locator(`[data-file-path="${path}"]`).boundingBox();
+    const root = await scroller.boundingBox();
+    if (!box || !root) throw new Error('geometry missing');
+    return box.y - root.y;
+  };
+  await scroller.hover();
+  await page.mouse.wheel(0, 1);
+  await scroller.evaluate((el) => {
+    const target = el.querySelector('[data-file-path="docs/Architecture.md"]') as HTMLElement;
+    el.scrollTop = target.offsetTop;
+  });
+  await expect(view.getByText('4 of 5')).toBeVisible();
+  await page.getByLabel('Commit files').getByRole('button', { name: /GraphRow\.tsx/ }).click();
+  await expect.poll(() => topOf('src/features/graph/GraphRow.tsx')).toBeLessThan(16);
+  await page.getByLabel('Commit files').getByRole('button', { name: /Architecture\.md/ }).click();
+  await expect.poll(() => topOf('docs/Architecture.md')).toBeLessThan(16);
+  await expect(view.getByText('4 of 5')).toBeVisible();
+
+  await scroller.click({ position: { x: 20, y: 200 } });
+  await page.keyboard.press('ArrowLeft');
+  await expect(view).toBeHidden();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible();
+});
+
+test('after a click into a file diff, ← closes it and returns to the graph', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('row').nth(2).click();
+  await page.getByLabel('Commit files').getByRole('button', { name: /CommitGraph\.tsx/ }).click();
+  const diff = page.locator('section[aria-label^="Diff for"]');
+  await expect(diff).toBeVisible();
+  const scroller = diff.locator('div.overflow-y-auto').first();
+  await expect(scroller.locator('[data-diff-row]').first()).toBeVisible();
+  await scroller.locator('[data-diff-row]').first().click();
+  await expect(page.locator('body')).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(diff).toBeHidden();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible();
+});
+
+test('a stash file never offers the all files layout, even when it is the remembered one', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('angkorgit-ui', JSON.stringify({ state: { diffLayout: 'all' }, version: 0 }));
+  });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('feat(graph): virtualize commit rows').first()).toBeVisible();
+  await page.getByText('WIP on main: experiment with lane colors').first().click();
+  const inspector = page.getByRole('complementary', { name: 'Inspector' });
+  await expect(inspector.getByText('This is a stash.', { exact: false })).toBeVisible();
+  await inspector.getByText('GraphRow.tsx', { exact: true }).click();
+  await expect(page.locator('section[aria-label^="Diff for"]')).toBeVisible();
+  await expect(page.locator('[data-all-changes]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Show all files' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('row').nth(2).click();
+  await page.getByLabel('Commit files').getByRole('button', { name: /GraphRow\.tsx/ }).click();
+  await expect(page.locator('[data-all-changes]')).toBeVisible();
+});
+
 test('conflict resolver shows line numbers in both sides and the result', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

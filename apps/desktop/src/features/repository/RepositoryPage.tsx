@@ -388,7 +388,7 @@ export function RepositoryPage() {
                 {centerEditor ? (
                   <EditorPanel key={centerEditor} file={centerEditor} />
                 ) : centerDiff ? (
-                  diffLayout === 'all' && centerDiff.oid && !centerDiff.unchanged ? (
+                  diffLayout === 'all' && centerDiff.oid && !centerDiff.unchanged && !centerDiff.stash ? (
                     <AllChangesView key={centerDiff.oid} target={{ ...centerDiff, oid: centerDiff.oid }} />
                   ) : (
                     <DiffPanel target={centerDiff} />

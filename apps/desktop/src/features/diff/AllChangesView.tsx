@@ -45,6 +45,7 @@ export function AllChangesView({ target }: { target: CenterDiffTarget & { oid: s
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [active, setActive] = useState<string>(target.path);
 
+  const rootRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sections = useRef(new Map<string, HTMLElement>());
   const heights = useRef(new Map<HTMLElement, number>());
@@ -177,7 +178,9 @@ export function AllChangesView({ target }: { target: CenterDiffTarget & { oid: s
 
   useLayoutEffect(() => {
     if (!files) return;
-    if (syncedFromScroll.current === target.path) return;
+    const synced = syncedFromScroll.current;
+    syncedFromScroll.current = null;
+    if (synced === target.path) return;
     const root = scrollRef.current;
     const el = sections.current.get(target.path);
     if (!root || !el) return;
@@ -236,12 +239,29 @@ export function AllChangesView({ target }: { target: CenterDiffTarget & { oid: s
   };
   const goFileRef = useRef(goFile);
   goFileRef.current = goFile;
+  const arrowKeysBelongHere = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) return false;
+    const ui = useUi.getState();
+    if (ui.paletteOpen || ui.dialog || ui.conflictFile) return false;
+    const focused = document.activeElement;
+    return !focused || focused === document.body || !!rootRef.current?.contains(focused);
+  };
   useShortcuts(
     useMemo(
       () => [
         { combo: '[', handler: () => goFileRef.current(-1), skipInInput: true },
         { combo: ']', handler: () => goFileRef.current(1), skipInInput: true },
+        {
+          combo: 'arrowleft',
+          skipInInput: true,
+          handler: (event: KeyboardEvent) => {
+            if (!arrowKeysBelongHere(event)) return;
+            useUi.getState().closeCenterDiff();
+            useUi.getState().focusGraph();
+          },
+        },
       ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     ),
   );
@@ -291,6 +311,7 @@ export function AllChangesView({ target }: { target: CenterDiffTarget & { oid: s
 
   return (
     <motion.section
+      ref={rootRef}
       className="flex h-full flex-col bg-background"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}

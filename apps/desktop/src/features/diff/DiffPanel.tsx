@@ -476,7 +476,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
           </span>
         )}
         <Separator orientation="vertical" className="mx-1 h-4" />
-        {target.oid && !target.unchanged && <DiffLayoutToggle />}
+        {target.oid && !target.unchanged && !target.stash && <DiffLayoutToggle />}
         <DiffViewControls
           wrapDisabled={!!textDiff && wrapUnavailable(textDiff)}
           notes={

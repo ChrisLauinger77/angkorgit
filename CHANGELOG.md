@@ -37,6 +37,10 @@ All notable changes to AngKorGit are documented here. The format follows
 - A tab whose folder was moved or deleted no longer lingers next to the repository's
   new location. The tab strip checks its folders and closes the ones that are gone,
   with a note naming them.
+- Clicking into a file diff and pressing ← closes it again, and → steps to the next
+  change. The window-level arrow shortcuts never fired: the shortcut hook marked the
+  key event as handled before the diff panel checked it, so only the file list's own
+  keys worked.
 
 ### Changed
 - **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged.

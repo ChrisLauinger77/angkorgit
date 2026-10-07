@@ -44,6 +44,7 @@ export interface CenterDiffTarget {
   oid?: string;
   oldPath?: string | null;
   unchanged?: boolean;
+  stash?: boolean;
 }
 
 export interface InteractiveRebasePreset {
