@@ -44,6 +44,7 @@ import {
   Input,
   Kbd,
   Logo,
+  PaneEmpty,
   Spinner,
   TemplePattern,
   cn,
@@ -520,7 +521,11 @@ export function WelcomePage() {
               />
             ) : searching ? (
               filtered.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-faint">No repositories match “{query.trim()}”.</p>
+                <PaneEmpty
+                  icon={<Search />}
+                  title="No repositories"
+                  description={`Nothing matches “${query.trim()}”.`}
+                />
               ) : (
                 filtered.map((repo) => renderRow(repo, false))
               )

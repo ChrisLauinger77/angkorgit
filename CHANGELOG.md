@@ -6,6 +6,9 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged.
+
 ## [0.21.1] — 2026-10-04
 
 A patch for the horizontal scrollbar that 0.21.0 introduced. On macOS it halved every
