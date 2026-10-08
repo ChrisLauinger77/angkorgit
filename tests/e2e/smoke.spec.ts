@@ -94,6 +94,10 @@ test('side-by-side rows pair edited lines by similarity and leave insertions alo
   const comment = await rowOf('new', '/**');
   expect(comment).not.toBe(rewritten);
   await expect(page.locator(`[data-diff-pane="old"] [data-diff-row="${comment}"]`)).toHaveAttribute('data-diff-blank', 'true');
+  await page.locator('[data-diff-pane="new"]').getByText('logger.info(userId)').scrollIntoViewIfNeeded();
+  expect(await rowOf('new', 'return db.get(userId);')).toBe(await rowOf('old', 'return db.get(id);'));
+  const inserted = await rowOf('new', 'logger.info(userId)');
+  await expect(page.locator(`[data-diff-pane="old"] [data-diff-row="${inserted}"]`)).toHaveAttribute('data-diff-blank', 'true');
 });
 
 test('pull and push offer every remote and follow the branch upstream by default', async ({ page }) => {
@@ -2477,7 +2481,7 @@ test('ignore whitespace hides an indent-only change and turns staging off', asyn
   await page.keyboard.press('Escape');
   await page.getByText('ipc.ts', { exact: true }).first().click();
   const token = page.locator('section[aria-label="Diff for src/core/ipc.ts"]');
-  await expect(token.getByText('+16', { exact: true })).toBeVisible();
+  await expect(token.getByText('+22', { exact: true })).toBeVisible();
   await expect(token.getByRole('button', { name: 'Stage hunk' })).toHaveCount(0);
 });
 

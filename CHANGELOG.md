@@ -43,7 +43,8 @@ All notable changes to AngKorGit are documented here. The format follows
   (#62). A line inserted between two edited lines used to steal the next deletion,
   so the word marks described the wrong edit and the real replacement sat alone on
   the row below. Lines are now paired by how many words they share; an unrelated
-  insertion gets its own row, and a single replaced line always shares one.
+  insertion gets its own row, and a single replaced line always shares one. The diff
+  minimap reads the same pairs, so its marks line up with the rows (#63).
 - Opening the terminal now focuses its input immediately, so typing works without
   clicking inside it first.
 - A tab whose folder was moved or deleted no longer lingers next to the repository's
