@@ -120,8 +120,9 @@ export function CommitGraph() {
     const author = authorDraft.trim();
     const current = useGraph.getState().find;
     if ((current?.text ?? '') === text && (current?.author ?? '') === author) return;
+    const selectedAt = useGraph.getState().selectionEpoch();
     const timer = setTimeout(() => {
-      void setFind(path, { text, author });
+      void setFind(path, { text, author }, selectedAt);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchDraft, authorDraft, path, setFind]);

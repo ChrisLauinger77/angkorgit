@@ -40,8 +40,9 @@ interface GraphState {
   reload: (path: string) => Promise<void>;
   loadMore: (path: string) => Promise<void>;
   setFilters: (path: string, filters: Partial<GraphFilters>) => void;
-  setFind: (path: string, query: FindQuery) => Promise<string | null>;
+  setFind: (path: string, query: FindQuery, since?: number) => Promise<string | null>;
   goToMatch: (path: string, index: number) => Promise<string | null>;
+  selectionEpoch: () => number;
   stepFind: (path: string, direction: 1 | -1) => Promise<string | null>;
   revealCommit: (path: string, oid: string) => Promise<boolean>;
   select: (oid: string | null) => void;
@@ -52,6 +53,7 @@ interface GraphState {
 
 let requestSeq = 0;
 let findSeq = 0;
+let selectSeq = 0;
 
 const errorText = (error: unknown) =>
   (error as { message?: string } | undefined)?.message ?? String(error);
@@ -59,6 +61,12 @@ const errorText = (error: unknown) =>
 const emptyFilters = (): GraphFilters => ({ branch: '' });
 
 const sameQuery = (a: FindQuery | null, b: FindQuery) => a !== null && a.text === b.text && a.author === b.author;
+
+const withActiveMatch = (find: FindState | null, oid: string | null): FindState | null => {
+  if (!find || !oid) return find;
+  const index = find.matches.findIndex((m) => m.oid === oid);
+  return index === -1 || index === find.active ? find : { ...find, active: index };
+};
 
 export const useGraph = create<GraphState>((set, get) => {
   const appendPage = (page: HistoryPage, layout: GraphLayout) => {
@@ -178,7 +186,7 @@ export const useGraph = create<GraphState>((set, get) => {
         });
     },
 
-    setFind: async (path, query) => {
+    setFind: async (path, query, since) => {
       const text = query.text.trim();
       const author = query.author.trim();
       findSeq += 1;
@@ -187,6 +195,7 @@ export const useGraph = create<GraphState>((set, get) => {
         return null;
       }
       const seq = findSeq;
+      const selectedAt = since ?? selectSeq;
       const { filters } = get();
       const wanted = { text, author };
       set((s) => ({
@@ -205,7 +214,12 @@ export const useGraph = create<GraphState>((set, get) => {
           branch: filters.branch || undefined,
         });
         if (seq !== findSeq || get().lastPath !== path) return null;
-        set({ find: { ...wanted, matches: result.matches, truncated: result.truncated, active: 0, loading: false } });
+        const landed: FindState = { ...wanted, matches: result.matches, truncated: result.truncated, active: 0, loading: false };
+        if (selectSeq !== selectedAt) {
+          set({ find: withActiveMatch(landed, get().selectedOid) });
+          return null;
+        }
+        set({ find: landed });
         if (result.matches.length === 0) return null;
         return get().goToMatch(path, 0);
       } catch {
@@ -227,8 +241,7 @@ export const useGraph = create<GraphState>((set, get) => {
           ? target.index
           : commits.findIndex((c) => c.oid === target.oid);
       if (at === -1) return null;
-      get().select(target.oid);
-      set({ pendingScrollIndex: at, locatedOid: target.oid });
+      set({ selectedOid: target.oid, selectedOids: [target.oid], locatedOid: target.oid, pendingScrollIndex: at });
       return target.oid;
     },
 
@@ -254,20 +267,34 @@ export const useGraph = create<GraphState>((set, get) => {
       return get().goToMatch(path, (find.active + direction + find.matches.length) % find.matches.length);
     },
 
-    select: (oid) => set({ selectedOid: oid, selectedOids: oid ? [oid] : [], locatedOid: null }),
+    select: (oid) => {
+      selectSeq += 1;
+      set((s) => ({
+        selectedOid: oid,
+        selectedOids: oid ? [oid] : [],
+        locatedOid: null,
+        find: withActiveMatch(s.find, oid),
+      }));
+    },
 
     clearPendingScroll: () => set({ pendingScrollIndex: null }),
 
-    toggleSelect: (oid) =>
+    selectionEpoch: () => selectSeq,
+
+    toggleSelect: (oid) => {
+      selectSeq += 1;
       set((s) => ({
         selectedOid: oid,
         locatedOid: null,
+        find: withActiveMatch(s.find, oid),
         selectedOids: s.selectedOids.includes(oid)
           ? s.selectedOids.filter((o) => o !== oid)
           : [...s.selectedOids, oid],
-      })),
+      }));
+    },
 
-    rangeSelect: (oid) =>
+    rangeSelect: (oid) => {
+      selectSeq += 1;
       set((s) => {
         const anchorIdx = s.selectedOid ? s.commits.findIndex((c) => c.oid === s.selectedOid) : -1;
         const clickedIdx = s.commits.findIndex((c) => c.oid === oid);
@@ -275,6 +302,7 @@ export const useGraph = create<GraphState>((set, get) => {
         if (anchorIdx < 0) return { selectedOid: oid, selectedOids: [oid] };
         const [lo, hi] = anchorIdx <= clickedIdx ? [anchorIdx, clickedIdx] : [clickedIdx, anchorIdx];
         return { selectedOids: s.commits.slice(lo, hi + 1).map((c) => c.oid) };
-      }),
+      });
+    },
   };
 });

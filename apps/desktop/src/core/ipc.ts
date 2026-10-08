@@ -106,6 +106,7 @@ export async function listen(event: string, handler: (payload: unknown) => void)
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 
 const DEMO_AI_KEYS = 'angkorgit-demo-ai-keys';
+const DEMO_SEARCH_DELAY = 'angkorgit-demo-search-delay';
 let demoCli: CliToolStatus | null = null;
 
 function demoAiKeys(): Record<string, string> {
@@ -118,6 +119,15 @@ function demoAiKeys(): Record<string, string> {
 
 function demoAiKeysSave(keys: Record<string, string>): void {
   localStorage.setItem(DEMO_AI_KEYS, JSON.stringify(keys));
+}
+
+function demoSearchDelay(): number {
+  try {
+    const ms = Number(localStorage.getItem(DEMO_SEARCH_DELAY));
+    return ms > 0 ? ms : 40;
+  } catch {
+    return 40;
+  }
 }
 
 export const ipc = {
@@ -297,7 +307,7 @@ export const ipc = {
   },
   async historySearch(path: string, query: HistorySearchQuery): Promise<HistorySearch> {
     if (!isTauri()) {
-      await delay(40);
+      await delay(demoSearchDelay());
       return demo.demoHistorySearch(query);
     }
     return invoke('history_search', { path, query });

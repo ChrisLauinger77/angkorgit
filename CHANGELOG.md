@@ -41,6 +41,11 @@ All notable changes to AngKorGit are documented here. The format follows
   change. The window-level arrow shortcuts never fired: the shortcut hook marked the
   key event as handled before the diff panel checked it, so only the file list's own
   keys worked.
+- A commit clicked while a search was still running stays selected. The first search
+  in a repository can take a moment, and when its result arrived it jumped to the
+  first match even though you had already picked another commit. A late result now
+  keeps your selection, and clicking a matching commit moves the "n of m" counter to
+  it so Enter continues from there.
 
 ### Changed
 - **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged.

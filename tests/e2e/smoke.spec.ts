@@ -54,6 +54,32 @@ test('commit search finds matches in the full graph and steps through them', asy
   await expect(page.getByText(/^1 of \d+$/)).toBeHidden();
 });
 
+test('a search result that lands after a click keeps the clicked commit selected', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('angkorgit-demo-search-delay', '1500'));
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  const search = page.getByPlaceholder('Search commits…');
+  await expect(search).toBeVisible({ timeout: 10_000 });
+  await search.fill('virtualiz');
+  const pill = page.getByText(/^1 of \d+$/);
+  await expect(pill).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-search-match="active"]')).toHaveText(/virtualize commit rows/);
+  await search.pressSequentially('e');
+  const clicked = page.locator('[role="row"]', { hasText: 'perf(history): lazy-load decorations' }).first();
+  await clicked.click();
+  await expect(clicked).toHaveAttribute('aria-selected', 'true');
+  await expect(pill).toBeHidden();
+  await expect(pill).toBeVisible({ timeout: 10_000 });
+  await expect(clicked).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-search-match="active"]')).toHaveCount(0);
+  await expect(page.locator('[data-search-match]').first()).toBeVisible();
+  await page.locator('[data-search-match]').nth(1).click();
+  await expect(page.getByText(/^2 of \d+$/)).toBeVisible();
+  await search.press('Enter');
+  await expect(page.getByText(/^3 of \d+$/)).toBeVisible();
+  await expect(page.locator('[data-search-match="active"]')).toHaveText(/virtualize commit rows/);
+});
+
 test('the author box finds commits without flattening the graph', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();
