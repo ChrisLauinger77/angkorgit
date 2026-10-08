@@ -39,6 +39,11 @@ All notable changes to AngKorGit are documented here. The format follows
   with a note naming them.
 - Clicking into a file diff and pressing ← closes it again, and → steps to the next
   change. The window-level arrow shortcuts never fired: the shortcut hook marked the
+- Side-by-side diffs pair each changed line with the line that actually replaced it
+  (#62). A line inserted between two edited lines used to steal the next deletion,
+  so the word marks described the wrong edit and the real replacement sat alone on
+  the row below. Lines are now paired by how many words they share; an unrelated
+  insertion gets its own row, and a single replaced line always shares one.
   key event as handled before the diff panel checked it, so only the file list's own
   keys worked.
 - A commit clicked while a search was still running stays selected. The first search

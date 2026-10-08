@@ -1621,6 +1621,23 @@ features/
 │                               motif — because a bare faint paragraph under a separator "looked
 │                               bad" to the owner once the items carried icons (2026-09-30)
 │                               (SlidersHorizontal trigger, tinted primary when any is on), and
+│                               ROW PAIRING BY SIMILARITY (issue #62, 2026-10-08):
+│                               core diff/linePairs.ts owns pairHunkLines (diffShared
+│                               re-exports it): a change run (deletions then additions
+│                               between context lines) pairs a deletion with the FIRST
+│                               later addition whose unique-word Dice similarity is
+│                               ≥ PAIR_SIMILARITY 0.6 (punctuation ignored, symbol-only
+│                               lines compared as text), so an inserted line stays on
+│                               its own row instead of stealing the next deletion; a run
+│                               of exactly one deletion and one addition always shares a
+│                               row; past PAIR_SCAN_CAP 4000 candidate pairs it falls
+│                               back to the old positional zip. 0.4 was tried first and
+│                               paired two unrelated `import … from` lines on the
+│                               keywords alone. Split rows AND the inline word-diff
+│                               counterpart map use the same pairs. The demo
+│                               CommitGraph.tsx diff has the shape (a comment block
+│                               inserted before a rewritten line) and the e2e asserts
+│                               the row indices across data-diff-pane old/new.
 │                               useCompactHeader (ResizeObserver on the
 │                               header, COMPACT_HEADER_WIDTH 960, data-diff-header
 │                               compact|full) hides the "n changes" text, sr-only's the "n

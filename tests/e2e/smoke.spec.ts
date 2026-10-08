@@ -80,6 +80,22 @@ test('a search result that lands after a click keeps the clicked commit selected
   await expect(page.locator('[data-search-match="active"]')).toHaveText(/virtualize commit rows/);
 });
 
+test('side-by-side rows pair edited lines by similarity and leave insertions alone', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await page.getByText('CommitGraph.tsx').first().click();
+  await page.getByRole('button', { name: 'Side-by-side diff' }).click();
+  const rowOf = (pane: 'old' | 'new', text: string) =>
+    page.locator(`[data-diff-pane="${pane}"] [data-diff-row]`, { hasText: text }).first().getAttribute('data-diff-row');
+  await expect(page.locator('[data-diff-pane="old"]')).toBeVisible();
+  expect(await rowOf('new', 'import { ROW_HEIGHT, OVERSCAN }')).toBe(await rowOf('old', "import { ROW_HEIGHT } from './constants';"));
+  const rewritten = await rowOf('old', 'const renderRow = (row: Row)');
+  expect(await rowOf('new', 'const renderRow = (item: VirtualItem')).toBe(rewritten);
+  const comment = await rowOf('new', '/**');
+  expect(comment).not.toBe(rewritten);
+  await expect(page.locator(`[data-diff-pane="old"] [data-diff-row="${comment}"]`)).toHaveAttribute('data-diff-blank', 'true');
+});
+
 test('the author box finds commits without flattening the graph', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

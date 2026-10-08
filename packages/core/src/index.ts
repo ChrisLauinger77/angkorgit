@@ -11,6 +11,7 @@ export * from './shortcuts/chord';
 export * from './graph/layout';
 export * from './diff/wordDiff';
 export * from './diff/renderCap';
+export * from './diff/linePairs';
 export * from './diff/patchText';
 export * from './diff/locateLine';
 export * from './conflicts/parse';
