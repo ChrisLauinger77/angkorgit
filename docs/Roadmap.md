@@ -1,10 +1,10 @@
 # Roadmap
 
-Updated for v0.21.1 (October 2026). [CHANGELOG.md](../CHANGELOG.md) is the
+Updated for v0.22.0 (October 2026). [CHANGELOG.md](../CHANGELOG.md) is the
 authoritative record of what shipped in each release; this file tracks
 direction.
 
-## Shipped (0.1.0 → 0.21.1)
+## Shipped (0.1.0 → 0.22.0)
 
 - [x] Repository: open, clone (with progress), recents, search, repository tabs (drag to reorder)
 - [x] Commit: stage files, hunks, and individual lines; unstage, commit, amend; per-repo commit drafts; multi-select in the working copy with bulk stage/unstage/stash/discard; discard for staged files; path filter over changed files and commit files
@@ -40,6 +40,9 @@ direction.
 - [x] Keyboard: → steps through the changes of an open diff; ⌘1 to ⌘9 and ⌘⇧[ / ⌘⇧] switch repository tabs; a per-repository key combination assigned from the tab or welcome menu that opens or switches to it from anywhere, listed in Settings → Shortcuts; ⌘W closes the current tab
 - [x] Repository groups: named, coloured groups on the welcome page and in the tab strip, collapsible, reorderable by drag, opened or closed as a set, with the repository menu and palette following; a list of open tabs once the strip overflows; a horizontal scrollbar for long diff lines; the PR dialog pushes an unpushed branch itself
 - [x] Diff: Ignore whitespace (`git diff -w`) in the View options menu, with staging stepping aside while it is on; force push from the Push menu asks first; Cursor CLI runs through its node entry on Windows
+- [x] Welcome: scan a folder for repositories at any depth and add them to recents in one go; same-named tabs show the parent folder that tells them apart; ⌘P switches repositories, ⌘T opens one in a new tab
+- [x] Diff: every file of a commit on one scrolling page (File / All files switch), side-by-side rows paired by similarity so an inserted line keeps its own row, minimap in step with the rows
+- [x] Remotes: Pull from / Push to any remote when a repository has several, the default following the branch upstream; a late search result never steals a clicked commit
 
 ## Next
 

@@ -6,6 +6,15 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-10-08
+
+The remotes release. Repositories with more than one remote get a "Pull from" and a
+"Push to" list on the toolbar, and the plain buttons now follow the branch's upstream
+instead of the first remote in the list. The welcome page can scan a whole folder of
+projects into recents, a commit's files can be read on one scrolling page, ⌘P jumps
+between repositories, and side-by-side diffs pair changed lines with the line that
+really replaced them, with the minimap following suit.
+
 ### Added
 - **Scan a folder for repositories.** The folder-search button in the Recent
   repositories header (and Scan in the empty state) picks a folder, walks every folder
@@ -1688,7 +1697,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/cheat2001/angkorgit/compare/v0.19.0...v0.20.0
