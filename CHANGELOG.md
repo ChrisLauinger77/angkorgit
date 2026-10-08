@@ -13,7 +13,9 @@ The remotes release. Repositories with more than one remote get a "Pull from" an
 instead of the first remote in the list. The welcome page can scan a whole folder of
 projects into recents, a commit's files can be read on one scrolling page, ⌘P jumps
 between repositories, and side-by-side diffs pair changed lines with the line that
-really replaced them, with the minimap following suit.
+really replaced them, with the minimap following suit. The scan, the tab names, the
+all-files page and ⌘P are a contributor's work, as are the terminal focus, the empty
+panes and the op-ssh-sign fix.
 
 ### Added
 - **Scan a folder for repositories.** The folder-search button in the Recent
@@ -21,10 +23,10 @@ really replaced them, with the minimap following suit.
   under it for Git repositories, including submodules and repositories nested inside
   others, skipping hidden and dependency folders such as node_modules, and lists what it
   found with checkboxes. Repositories already in
-  recents are marked, and Add puts the picked ones into the list without opening them.
+  recents are marked, and Add puts the picked ones into the list without opening them. (#60)
 - **Same-named tabs tell you which is which.** When two open repositories share a
   folder name, such as a fork and the original or two clones, each tab adds the
-  nearest parent folder that sets it apart (“payments · shared-services”).
+  nearest parent folder that sets it apart (“payments · shared-services”). (#60)
 - **Every file of a commit on one page.** The diff header of a commit file gains a
   File / All files switch. All files stacks every changed file in one scrolling page,
   GitLab-style: a sticky header per file with its status, folder and line counts, a
@@ -32,7 +34,7 @@ really replaced them, with the minimap following suit.
   side by side and the view options apply to every file at once. Diffs load as they
   scroll into view, files over 1,500 changed lines start collapsed, clicking a file in
   the commit's file list scrolls to it, scrolling moves the file list's highlight, and
-  [ / ] step between files. The choice is remembered.
+  [ / ] step between files. The choice is remembered. (#60)
 - **Pull from and push to any remote.** With more than one remote, the Pull and Push
   menus list every remote under "Pull from" / "Push to", with the default ticked (#61).
   The default follows the current branch's upstream, then `origin`, instead of whatever
@@ -43,9 +45,9 @@ really replaced them, with the minimap following suit.
 - **⌘P switches repositories.** A search box over every recent repository, matching
   name or path, with the current repository and open tabs marked. Enter switches to the
   repository's tab when it is already open and opens a new tab otherwise; it works from
-  the welcome page too. ⌘K stays the command palette (⌘P used to open it as well).
+  the welcome page too. ⌘K stays the command palette (⌘P used to open it as well). (#60)
 - **⌘T opens a repository in a new tab**, the same as the + button at the end of the
-  tab strip.
+  tab strip. (#60)
 
 ### Fixed
 - Side-by-side diffs pair each changed line with the line that actually replaced it
@@ -55,10 +57,14 @@ really replaced them, with the minimap following suit.
   insertion gets its own row, and a single replaced line always shares one. The diff
   minimap reads the same pairs, so its marks line up with the rows (#63).
 - Opening the terminal now focuses its input immediately, so typing works without
-  clicking inside it first.
+  clicking inside it first. (#56)
+- Commit signing through 1Password's op-ssh-sign never found the signature: the
+  buffer handed to the signer carried a `.buf` extension, and op-ssh-sign writes its
+  `.sig` with the extension replaced rather than appended. The buffer has no extension
+  now, so ssh-keygen and op-ssh-sign land on the same file. (#59)
 - A tab whose folder was moved or deleted no longer lingers next to the repository's
   new location. The tab strip checks its folders and closes the ones that are gone,
-  with a note naming them.
+  with a note naming them. (#60)
 - Clicking into a file diff and pressing ← closes it again, and → steps to the next
   change. The window-level arrow shortcuts never fired: the shortcut hook marked the
   key event as handled before the diff panel checked it, so only the file list's own
@@ -70,9 +76,9 @@ really replaced them, with the minimap following suit.
   it so Enter continues from there.
 
 ### Changed
-- **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged.
+- **Empty panes use one panel.** Diff blanks, a file with no history, an empty graph, a commit with no files, a welcome search with no matches, and an empty rebase plan use a centered panel (icon, title, one line) instead of a faint sentence. A staged whitespace-only file says those changes are still staged. (#50)
 - Recent repositories keep up to 1,000 entries instead of 30, so a scanned folder of
-  projects is not cut short.
+  projects is not cut short. (#60)
 
 ## [0.21.1] — 2026-10-04
 
