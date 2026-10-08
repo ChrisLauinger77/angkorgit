@@ -96,6 +96,51 @@ test('side-by-side rows pair edited lines by similarity and leave insertions alo
   await expect(page.locator(`[data-diff-pane="old"] [data-diff-row="${comment}"]`)).toHaveAttribute('data-diff-blank', 'true');
 });
 
+test('pull and push offer every remote and follow the branch upstream by default', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Pull options' })).toBeVisible({ timeout: 10_000 });
+  await page.evaluate(async () => {
+    const [{ ipc }, { useRepo }] = await Promise.all([
+      import('/src/core/ipc.ts'),
+      import('/src/features/repository/store.ts'),
+    ]);
+    const tracker = window as unknown as { __remoteCalls: string[] };
+    tracker.__remoteCalls = [];
+    const remotes = [
+      { name: 'gitlab', url: 'git@gitlab.com:demo/angkorgit.git' },
+      { name: 'origin', url: 'git@github.com:demo/angkorgit.git' },
+    ];
+    ipc.remotes = async () => remotes;
+    ipc.pull = async (_path, name) => {
+      tracker.__remoteCalls.push(`pull:${name}`);
+      return { status: 'ok', message: `Pulled ${name}` };
+    };
+    ipc.push = async (_path, name, _force, _tags, setUpstream) => {
+      tracker.__remoteCalls.push(`push:${name}:${setUpstream}`);
+      return { status: 'ok', message: `Pushed ${name}` };
+    };
+    useRepo.setState({ remotes });
+  });
+  const calls = () => page.evaluate(() => (window as unknown as { __remoteCalls: string[] }).__remoteCalls);
+  await page.getByRole('button', { name: /^Pull( \d+)?$/ }).click();
+  await expect.poll(calls).toEqual(['pull:origin']);
+  await page.getByRole('button', { name: 'Pull options' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'origin' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('menuitemcheckbox', { name: 'gitlab' })).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('menuitemcheckbox', { name: 'gitlab' }).click();
+  await expect.poll(calls).toEqual(['pull:origin', 'pull:gitlab']);
+  await page.getByRole('button', { name: 'Push options' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'gitlab' }).click();
+  await expect.poll(calls).toEqual(['pull:origin', 'pull:gitlab', 'push:gitlab:false']);
+  await page.getByRole('button', { name: 'Push options' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'origin' }).click();
+  await expect.poll(calls).toEqual(['pull:origin', 'pull:gitlab', 'push:gitlab:false', 'push:origin:true']);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+  await page.getByPlaceholder(/Type a command/).fill('Pull from gitlab');
+  await expect(page.getByRole('option', { name: /Pull from gitlab/ })).toBeVisible();
+});
+
 test('the author box finds commits without flattening the graph', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

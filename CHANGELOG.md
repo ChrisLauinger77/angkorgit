@@ -24,6 +24,13 @@ All notable changes to AngKorGit are documented here. The format follows
   scroll into view, files over 1,500 changed lines start collapsed, clicking a file in
   the commit's file list scrolls to it, scrolling moves the file list's highlight, and
   [ / ] step between files. The choice is remembered.
+- **Pull from and push to any remote.** With more than one remote, the Pull and Push
+  menus list every remote under "Pull from" / "Push to", with the default ticked (#61).
+  The default follows the current branch's upstream, then `origin`, instead of whatever
+  remote happened to be listed first. Pulling from another remote merges or rebases
+  onto that remote's branch of the same name, like `git pull <remote> <branch>`, and
+  pushing to another remote leaves the branch's upstream alone. The command palette
+  carries the same entries.
 - **⌘P switches repositories.** A search box over every recent repository, matching
   name or path, with the current repository and open tabs marked. Enter switches to the
   repository's tab when it is already open and opens a new tab otherwise; it works from
@@ -32,6 +39,11 @@ All notable changes to AngKorGit are documented here. The format follows
   tab strip.
 
 ### Fixed
+- Side-by-side diffs pair each changed line with the line that actually replaced it
+  (#62). A line inserted between two edited lines used to steal the next deletion,
+  so the word marks described the wrong edit and the real replacement sat alone on
+  the row below. Lines are now paired by how many words they share; an unrelated
+  insertion gets its own row, and a single replaced line always shares one.
 - Opening the terminal now focuses its input immediately, so typing works without
   clicking inside it first.
 - A tab whose folder was moved or deleted no longer lingers next to the repository's
@@ -39,11 +51,6 @@ All notable changes to AngKorGit are documented here. The format follows
   with a note naming them.
 - Clicking into a file diff and pressing ← closes it again, and → steps to the next
   change. The window-level arrow shortcuts never fired: the shortcut hook marked the
-- Side-by-side diffs pair each changed line with the line that actually replaced it
-  (#62). A line inserted between two edited lines used to steal the next deletion,
-  so the word marks described the wrong edit and the real replacement sat alone on
-  the row below. Lines are now paired by how many words they share; an unrelated
-  insertion gets its own row, and a single replaced line always shares one.
   key event as handled before the diff panel checked it, so only the file list's own
   keys worked.
 - A commit clicked while a search was still running stays selected. The first search

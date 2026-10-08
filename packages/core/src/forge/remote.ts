@@ -1,3 +1,4 @@
+import { pickRemote } from '../git/remotes';
 import type { RemoteInfo } from '../git/types';
 
 export interface ParsedRemote {
@@ -21,13 +22,7 @@ export function pickForgeRemote(
   remotes: RemoteInfo[],
   headUpstream: string | null,
 ): RemoteInfo | null {
-  if (remotes.length === 0) return null;
-  const upstreamRemote = headUpstream?.split('/')[0];
-  if (upstreamRemote) {
-    const match = remotes.find((remote) => remote.name === upstreamRemote);
-    if (match) return match;
-  }
-  return remotes.find((remote) => remote.name === 'origin') ?? remotes[0];
+  return pickRemote(remotes, headUpstream);
 }
 
 export type ForgeKind = 'github' | 'gitlab' | 'bitbucket' | 'bitbucket-server';

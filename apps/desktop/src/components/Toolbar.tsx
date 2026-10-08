@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { chordLabels, groupRepos, parseChordId, type RecentRepository } from '@angkorgit/core';
+import { chordLabels, groupRepos, parseChordId, pickRemote, pushSetsUpstream, type RecentRepository } from '@angkorgit/core';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { toastOutcome } from '@/shared/toastOutcome';
@@ -30,6 +30,7 @@ import {
   Badge,
   Button,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -408,6 +409,7 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
   const repo = useRepo((s) => s.repo);
   const status = useRepo((s) => s.status);
   const remotes = useRepo((s) => s.remotes);
+  const headUpstream = useRepo((s) => s.branches.find((b) => !b.isRemote && b.isHead)?.upstream ?? null);
   const stashes = useRepo((s) => s.stashes);
   const busy = useRepo((s) => s.busy);
   const setBusy = useRepo((s) => s.setBusy);
@@ -420,7 +422,7 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
   const [spinning, setSpinning] = useState(false);
 
   if (!repo) return null;
-  const remote = remotes[0]?.name ?? 'origin';
+  const remote = pickRemote(remotes, headUpstream)?.name ?? 'origin';
   const latestStash = stashes[0];
 
   const editorId = useSettings((s) => s.editorId);
@@ -567,6 +569,21 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
             <DropdownMenuItem onClick={() => void run('Pull (rebase)', () => ipc.pull(repo.path, remote, 'rebase'))}>
               Pull with rebase
             </DropdownMenuItem>
+            {remotes.length > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Pull from</DropdownMenuLabel>
+                {remotes.map((r) => (
+                  <DropdownMenuCheckboxItem
+                    key={r.name}
+                    checked={r.name === remote}
+                    onSelect={() => void run(`Pull from ${r.name}`, () => ipc.pull(repo.path, r.name))}
+                  >
+                    <span className="truncate">{r.name}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -597,6 +614,25 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
             <DropdownMenuItem onClick={() => runPush('Push with tags', () => ipc.push(repo.path, remote, false, true, true))}>
               Push with tags
             </DropdownMenuItem>
+            {remotes.length > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Push to</DropdownMenuLabel>
+                {remotes.map((r) => (
+                  <DropdownMenuCheckboxItem
+                    key={r.name}
+                    checked={r.name === remote}
+                    onSelect={() =>
+                      runPush(`Push to ${r.name}`, () =>
+                        ipc.push(repo.path, r.name, false, false, pushSetsUpstream(headUpstream, r.name)),
+                      )
+                    }
+                  >
+                    <span className="truncate">{r.name}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void run('Fetch tags', () => ipc.fetch(repo.path, remote, true, false))}>
               Fetch tags

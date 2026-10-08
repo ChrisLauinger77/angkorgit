@@ -468,13 +468,8 @@ pub fn pull(path: &str, remote_name: &str, mode: Option<&str>) -> AppResult<OpOu
         .ok_or_else(|| AppError::other("HEAD is detached; cannot pull"))?
         .to_string();
     let branch = repo.find_branch(&branch_name, git2::BranchType::Local)?;
-    let upstream = branch
-        .upstream()
-        .map_err(|_| AppError::other(format!("branch {branch_name} has no upstream")))?;
-    let upstream_name = upstream
-        .name()?
-        .ok_or_else(|| AppError::other("invalid upstream name"))?
-        .to_string();
+    let upstream_name = pull_source(&repo, &branch, &branch_name, remote_name)?;
+    let upstream = repo.find_branch(&upstream_name, git2::BranchType::Remote)?;
     let local_oid = branch
         .get()
         .target()
@@ -498,6 +493,37 @@ pub fn pull(path: &str, remote_name: &str, mode: Option<&str>) -> AppResult<OpOu
         return super::branch::rebase(path, &upstream_name);
     }
     super::branch::merge(path, &upstream_name, false)
+}
+
+fn pull_source(
+    repo: &Repository,
+    branch: &git2::Branch,
+    branch_name: &str,
+    remote_name: &str,
+) -> AppResult<String> {
+    if let Ok(upstream) = branch.upstream() {
+        let tracked_remote = branch
+            .get()
+            .name()
+            .and_then(|refname| repo.branch_upstream_remote(refname).ok())
+            .and_then(|buf| buf.as_str().map(str::to_string));
+        if tracked_remote.as_deref() == Some(remote_name) {
+            return Ok(upstream
+                .name()?
+                .ok_or_else(|| AppError::other("invalid upstream name"))?
+                .to_string());
+        }
+    }
+    let same_name = format!("{remote_name}/{branch_name}");
+    if repo
+        .find_branch(&same_name, git2::BranchType::Remote)
+        .is_ok()
+    {
+        return Ok(same_name);
+    }
+    Err(AppError::other(format!(
+        "{remote_name} has no branch {branch_name}"
+    )))
 }
 
 fn pull_rebase_configured(repo: &Repository) -> bool {

@@ -2419,6 +2419,57 @@ fn head_summary_and_parents(repo: &TempRepo) -> (String, usize) {
 }
 
 #[test]
+fn pull_from_a_remote_other_than_the_upstream_merges_its_same_name_branch() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+
+    let mirror = local.dir.with_file_name(format!(
+        "{}-mirror.git",
+        local.dir.file_name().unwrap().to_string_lossy()
+    ));
+    git2::Repository::init_bare(&mirror).unwrap();
+    core::remote_add(local.path(), "mirror", mirror.to_str().unwrap()).unwrap();
+    core::push(local.path(), "mirror", None, false, false, false).unwrap();
+    let other = clone_of(&mirror, &local, "other");
+    other.write("b.txt", "only on the mirror\n");
+    commit_all(&other, "mirror commit");
+    core::push(other.path(), "origin", None, false, false, true).unwrap();
+
+    let outcome = core::pull(local.path(), "mirror", Some("merge")).unwrap();
+    assert_eq!(outcome.status, "fast_forward", "{}", outcome.message);
+    assert_eq!(local.read("b.txt"), "only on the mirror\n");
+    let repo = git2::Repository::open(local.path()).unwrap();
+    let branch = repo.find_branch("master", git2::BranchType::Local).unwrap();
+    assert_eq!(
+        branch.upstream().unwrap().name().unwrap(),
+        Some("origin/master")
+    );
+    drop(branch);
+    drop(repo);
+
+    let empty = local.dir.with_file_name(format!(
+        "{}-empty.git",
+        local.dir.file_name().unwrap().to_string_lossy()
+    ));
+    git2::Repository::init_bare(&empty).unwrap();
+    core::remote_add(local.path(), "empty", empty.to_str().unwrap()).unwrap();
+    let err = core::pull(local.path(), "empty", Some("merge"))
+        .err()
+        .expect("pulling a branch the remote lacks fails");
+    assert!(
+        err.to_string().contains("empty has no branch master"),
+        "{err}"
+    );
+
+    let _ = std::fs::remove_dir_all(&origin);
+    let _ = std::fs::remove_dir_all(&mirror);
+    let _ = std::fs::remove_dir_all(&empty);
+}
+
+#[test]
 fn pull_rebases_when_asked_or_configured_and_merges_otherwise() {
     let local = TempRepo::new();
     local.write("a.txt", "base\n");
