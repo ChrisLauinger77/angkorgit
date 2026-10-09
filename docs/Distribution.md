@@ -117,7 +117,10 @@ self-signed signer can never be Valid on the runner.
    single-exe configuration that would otherwise be the default).
 2. Project `angkorgit` → link the predefined trusted build system
    **GitHub.com** and set the repository to `https://github.com/cheat2001/angkorgit`.
-   (The SignPath GitHub App is only needed for audit-log policies, not for us.)
+   Then install the SignPath GitHub App (https://github.com/apps/signpath) on
+   the repository: the action fails with "Failed to retrieve GitHub App token"
+   without it, because SignPath fetches the workflow artifact and the run's
+   origin metadata through that app (first test run, 2026-10-09).
 3. CI user "CI builds" → API token → **Regenerate token**, copy it once, and
    store it as the repository secret `SIGNPATH_API_TOKEN`
    (`gh secret set SIGNPATH_API_TOKEN`). The token SignPath generated on

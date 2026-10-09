@@ -3565,7 +3565,8 @@ agent, "Generated with/by", 🤖 — while leaving real people's
   the signed bytes, `gh release upload --clobber`s the four assets and rewrites
   the Windows signatures in `latest.json` by URL suffix. Artifact configuration
   in `.github/signpath/artifact-configuration.xml` (uploaded to the SignPath
-  project by hand). Only the installers are signed, the inner angkorgit.exe is
+  project by hand). The SignPath GitHub App must be installed on the repo
+  (the first test run failed with "Failed to retrieve GitHub App token"). Only the installers are signed, the inner angkorgit.exe is
   not. `release-signing` needs a manual approval in the SignPath UI per release
   (the job waits up to 5 h; on timeout deny the stale request and re-run the
   job). Owner setup steps and the switch to production live in
