@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
@@ -58,3 +59,117 @@ jobs:
           releaseName: 'AngKorGit ${{ github.ref_name }}'
           releaseDraft: true
           args: ${{ matrix.args }}
+      - name: Collect the unsigned Windows installers
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir windows-unsigned
+          cp apps/desktop/src-tauri/target/release/bundle/nsis/AngKorGit_*_x64-setup.exe windows-unsigned/
+          cp apps/desktop/src-tauri/target/release/bundle/msi/AngKorGit_*_x64_en-US.msi windows-unsigned/
+          ls -l windows-unsigned
+      - name: Upload the unsigned Windows installers for SignPath
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-unsigned
+          path: windows-unsigned/*
+          if-no-files-found: error
+          retention-days: 3
+
+  sign-windows:
+    name: Sign the Windows installers
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.ref_name }}
+      SIGNING_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'test-signing' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Find the unsigned artifact
+        id: unsigned
+        shell: bash
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name == "windows-unsigned") | .id')
+          test -n "$id"
+          echo "artifact-id=$id" >> "$GITHUB_OUTPUT"
+      - name: Submit the signing request
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: 44482a90-340e-4e18-9931-67153e09e272
+          project-slug: angkorgit
+          signing-policy-slug: ${{ env.SIGNING_POLICY }}
+          artifact-configuration-slug: Windows_installers
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 18000
+          output-artifact-directory: signed
+      - name: Check the Authenticode signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem signed -Recurse -File | Where-Object { $_.Extension -in '.exe', '.msi' }
+          if ($files.Count -ne 2) {
+            throw "Expected the setup.exe and the .msi back from SignPath, found $($files.Count) files"
+          }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -FilePath $file.FullName
+            if (-not $signature.SignerCertificate) {
+              throw "$($file.Name) came back without an Authenticode signature ($($signature.Status))"
+            }
+            "$($file.Name): $($signature.Status), $($signature.SignerCertificate.Subject)"
+            if ($env:SIGNING_POLICY -eq 'release-signing') {
+              if ($signature.Status -ne 'Valid') {
+                throw "$($file.Name) signature is $($signature.Status), expected Valid"
+              }
+              if (-not $signature.SignerCertificate.Subject.Contains('CN=SignPath Foundation')) {
+                throw "$($file.Name) is signed by $($signature.SignerCertificate.Subject), expected SignPath Foundation"
+              }
+            }
+          }
+          "Signing request: ${{ steps.signpath.outputs.signing-request-web-url }}"
+      - name: Sign the installers for the updater
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir release-assets
+          find signed -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp {} release-assets/ \;
+          cd apps/desktop
+          for file in ../../release-assets/*.exe ../../release-assets/*.msi; do
+            pnpm exec tauri signer sign "$file"
+            test -s "$file.sig"
+          done
+          cd ../..
+          ls -l release-assets
+      - name: Replace the release assets
+        shell: bash
+        run: gh release upload "$TAG" release-assets/* --clobber
+      - name: Update the updater manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" -p latest.json -D manifest
+          nsis=$(cat release-assets/*-setup.exe.sig)
+          msi=$(cat release-assets/*.msi.sig)
+          jq --arg nsis "$nsis" --arg msi "$msi" '
+            .platforms |= with_entries(
+              if (.value.url | endswith("-setup.exe")) then .value.signature = $nsis
+              elif (.value.url | endswith(".msi")) then .value.signature = $msi
+              else . end)' manifest/latest.json > latest.json
+          jq '.platforms | with_entries(select(.key | startswith("windows")))' latest.json
+          gh release upload "$TAG" latest.json --clobber

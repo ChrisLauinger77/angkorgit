@@ -13,7 +13,7 @@ cannot be automated by contributors.
    macOS (universal), Windows, and Linux bundles via `tauri-action` and attaches
    them to a **draft** GitHub release. Review, paste the changelog section, publish.
 
-## 2. Distribution WITHOUT paid signing (the current, chosen approach)
+## 2. Distribution WITHOUT paid signing (macOS and Linux; Windows is signed, see §2b)
 
 AngKorGit ships **unsigned** — free and independent. Users get one extra step
 on first launch; document it prominently (README covers this):
@@ -24,8 +24,10 @@ on first launch; document it prominently (README covers this):
   Terminal alternative: `xattr -cr /Applications/AngKorGit.app` (removes the
   quarantine flag). Tauri ad-hoc-signs the binary automatically, so it runs
   fine on Apple Silicon once past Gatekeeper.
-- **Windows**: SmartScreen shows "Windows protected your PC" →
-  **More info → Run anyway**.
+- **Windows**: releases before the first SignPath-signed one show SmartScreen's
+  "Windows protected your PC" → **More info → Run anyway**. Signed builds carry
+  the SignPath Foundation signature (§2b); SmartScreen reputation still builds
+  up per certificate over the first downloads.
 - **Linux**: AppImage: `chmod +x AngKorGit_*.AppImage` and run; `.deb` installs
   normally.
 
@@ -62,6 +64,82 @@ Actions from public source, updates are minisign-verified (§3), and users can
 always build from source. If the project later earns sponsorship, Apple
 notarization (~$99/yr) can be added — the workflow snippet lives in git
 history — purely to remove the first-launch step.
+
+## 2b. Windows code signing — SignPath Foundation (wired, test certificate first)
+
+Issue #49: Defender's `Wacatac.C!ml` heuristic flagged the unsigned 0.20.0
+`setup.exe`, and the updater runs that same installer, so a flagged update
+removed the app. The fix is a real Authenticode signature. SignPath Foundation
+signs open source projects for free on their HSM (publisher reads "SignPath
+Foundation"); the application was approved on 2026-10-08 and the public policy
+it required lives at https://angkorgit.app/code-signing/.
+
+**What `release.yml` does now.** The Windows build job copies the NSIS
+`setup.exe` and the `.msi` into a flat `windows-unsigned` workflow artifact. A
+second job, `sign-windows`, waits for all three platform builds (so every
+platform has already merged its entry into `latest.json`), submits that
+artifact with `signpath/github-action-submit-signing-request` and waits for the
+result. SignPath checks the artifact came from a workflow run of this
+repository before signing. The job then verifies the Authenticode signatures
+with `Get-AuthenticodeSignature`, re-signs the two files with the updater's
+minisign key (`tauri signer sign` writes a `.sig` next to each file),
+replaces the four release assets with `gh release upload --clobber`, and
+rewrites the three Windows signatures in `latest.json` (the `windows-x86_64`
+entry points at the `.msi`, so it gets the msi signature). The release stays a
+draft throughout; publishing is still the owner's manual step, so an unsigned
+installer is never downloadable.
+
+Only the two installers are signed. The `angkorgit.exe` inside them stays
+unsigned (SignPath signs the uploaded artifact after the build; signing the
+inner binary would need the key at build time, which an HSM-held certificate
+rules out). SmartScreen and Defender judge the file the user downloads and
+runs, which is the installer, so this is the same shape other SignPath-signed
+Tauri apps ship.
+
+**SignPath ids** (not secrets, hardcoded in the workflow): organization
+`44482a90-340e-4e18-9931-67153e09e272`, project `angkorgit`. Signing policies:
+`test-signing` (self-signed test certificate, the default) and
+`release-signing` (the production certificate, INVALID in the SignPath UI
+until they import it). The policy is read from the repository variable
+`SIGNPATH_SIGNING_POLICY_SLUG` and falls back to `test-signing`, so the switch
+to production is one variable change, no commit. With `release-signing` the
+verify step also requires `Status == Valid` and `CN=SignPath Foundation`; with
+the test certificate it only checks that a signature is present, because a
+self-signed signer can never be Valid on the runner.
+
+**[owner] one-time setup in app.signpath.io** (do in this order):
+1. Project `angkorgit` → Artifact configurations → add one, upload
+   `.github/signpath/artifact-configuration.xml` (zip root, a `pe-file` for
+   `AngKorGit_*_x64-setup.exe` and an `msi-file` for
+   `AngKorGit_*_x64_en-US.msi`, both `authenticode-sign`). Done 2026-10-09 as
+   "Windows installers", slug `Windows_installers`, which the workflow pins
+   with `artifact-configuration-slug` (SignPath pre-made an "Initial version"
+   single-exe configuration that would otherwise be the default).
+2. Project `angkorgit` → link the predefined trusted build system
+   **GitHub.com** and set the repository to `https://github.com/cheat2001/angkorgit`.
+   (The SignPath GitHub App is only needed for audit-log policies, not for us.)
+3. CI user "CI builds" → API token → **Regenerate token**, copy it once, and
+   store it as the repository secret `SIGNPATH_API_TOKEN`
+   (`gh secret set SIGNPATH_API_TOKEN`). The token SignPath generated on
+   2026-10-08 was never shown to us, so regenerating is the only way to get one.
+4. Push a throwaway tag (for example `v0.22.0-signtest`) to exercise the
+   workflow against `test-signing`: approve the request in SignPath if the
+   policy asks, check the run's "Check the Authenticode signatures" step,
+   download the draft's `setup.exe` on Windows and confirm Properties →
+   Digital Signatures lists the test signer, then delete the draft release and
+   the tag. Reply to SignPath (oss-support@signpath.org) that the setup is
+   done; they review it and import the production certificate.
+5. Once `release-signing` turns VALID: `gh variable set
+   SIGNPATH_SIGNING_POLICY_SLUG -b release-signing`. The next tagged release is
+   production-signed; note it in the CHANGELOG and close #49 with that version.
+
+**Per release.** `release-signing` requires a manual approval in the SignPath
+UI (that is part of the policy we published). The `sign-windows` job waits up
+to five hours for it; approve from the email SignPath sends or from the
+signing request page. If the job times out, deny the stale request in SignPath
+and re-run the failed job only: the unsigned artifact is kept for three days,
+and a re-run submits a fresh request. The draft's Windows assets are the
+unsigned ones until the job succeeds, so do not publish before it is green.
 
 ## 3. Auto-updates — ACTIVE ✅ (free, Apple-independent)
 

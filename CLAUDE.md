@@ -223,7 +223,9 @@ angkorgit/
 │   ├── unit/                  ← vitest: graphLayout, wordDiff, conflicts (pure core logic)
 │   └── e2e/                   ← Playwright vs browser DEMO MODE (no native build needed)
 ├── scripts/generate-icons.mjs ← zero-dependency PNG icon generator
-└── .github/workflows/         ← ci.yml (typecheck/test/e2e + rust matrix), release.yml (tauri-action on v* tags)
+├── .github/workflows/         ← ci.yml (typecheck/test/e2e + rust matrix), release.yml (tauri-action on v* tags
+│                                + the sign-windows SignPath job, see §10)
+└── .github/signpath/          ← artifact-configuration.xml: what SignPath signs (setup.exe + msi)
 ```
 
 **Import aliases**: `@/` = `apps/desktop/src`; `@angkorgit/core` and
@@ -3549,7 +3551,25 @@ agent, "Generated with/by", 🤖 — while leaving real people's
   URL `https://cheat2001.github.io/angkorgit/` (base `/angkorgit/`, env `SITE_BASE`)
   is no longer used — the GitHub Pages site is built at root base for the custom domain.
 - **Release** (`release.yml`): push tag `v*` → tauri-action builds macOS (universal),
-  Windows, Linux; attaches to draft GitHub release.
+  Windows, Linux; attaches to draft GitHub release. WINDOWS CODE SIGNING
+  (issue #49, SignPath Foundation approved 2026-10-08, wired 2026-10-09): the
+  Windows build job uploads the NSIS setup.exe + .msi as a flat `windows-unsigned`
+  workflow artifact and a `sign-windows` job (needs: build, so `latest.json`
+  already carries every platform) submits it through
+  `signpath/github-action-submit-signing-request@v3` (org id + project slug
+  `angkorgit` + artifact configuration slug `Windows_installers` hardcoded,
+  policy from repo variable SIGNPATH_SIGNING_POLICY_SLUG
+  falling back to `test-signing`; secret SIGNPATH_API_TOKEN), verifies with
+  Get-AuthenticodeSignature (Valid + CN=SignPath Foundation only under
+  `release-signing`), re-runs `tauri signer sign` so the updater `.sig`s match
+  the signed bytes, `gh release upload --clobber`s the four assets and rewrites
+  the Windows signatures in `latest.json` by URL suffix. Artifact configuration
+  in `.github/signpath/artifact-configuration.xml` (uploaded to the SignPath
+  project by hand). Only the installers are signed, the inner angkorgit.exe is
+  not. `release-signing` needs a manual approval in the SignPath UI per release
+  (the job waits up to 5 h; on timeout deny the stale request and re-run the
+  job). Owner setup steps and the switch to production live in
+  docs/Distribution.md §2b; the first test run is still pending.
 - **Version-alignment checklist (MANDATORY on every release/bump)** — the version
   lives in more places than the manifests; a release is not done until ALL of
   these say the new version. Verify with
@@ -3573,6 +3593,9 @@ agent, "Generated with/by", 🤖 — while leaving real people's
   10. `cheat2001/homebrew-tap` repo — `Casks/angkorgit.rb` `version` + `sha256`
      (`shasum -a 256` of the new universal dmg, AFTER the release artifacts are
      published; see docs/Distribution.md §4)
+  Before publishing: approve the SignPath signing request and wait for the
+  `sign-windows` job to go green (the draft's Windows assets are unsigned until
+  then).
   After publishing: confirm the updater offered the release (installed app
   version flips), and that angkorgit.app shows the new version (manually
   dispatch the Website workflow if the release-triggered deploy served stale).
