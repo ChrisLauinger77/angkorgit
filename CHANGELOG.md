@@ -6,6 +6,12 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Filter settings by title or keyword.** The search field focuses when Settings
+  opens, hides non-matching cards and sections, and accepts multiple terms. Enter
+  lands on the first match with a locate flash. Escape clears the filter before
+  closing; closing resets it, and opening a specific section still works. (#33)
+
 ### Fixed
 - Staging or unstaging a multi-file selection no longer fails with "the index is
   locked": the selection goes to the engine as one call with a single index write
