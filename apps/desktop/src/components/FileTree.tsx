@@ -2,12 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown, Folder } from 'lucide-react';
 import { Button, Hint, cn } from '@angkorgit/design-system';
 
-interface TreeFolder<T> {
+export interface TreeFolder<T> {
   name: string;
   path: string;
   folders: TreeFolder<T>[];
   files: T[];
   count: number;
+}
+
+export function folderFiles<T>(folder: TreeFolder<T>, into: T[] = []): T[] {
+  into.push(...folder.files);
+  for (const child of folder.folders) folderFiles(child, into);
+  return into;
 }
 
 function buildFileTree<T>(items: T[], pathOf: (item: T) => string): TreeFolder<T> {
@@ -60,36 +66,88 @@ function buildFileTree<T>(items: T[], pathOf: (item: T) => string): TreeFolder<T
   return finalize(root);
 }
 
+function FolderRow<T>({
+  folder,
+  depth,
+  open,
+  onToggle,
+  control,
+}: {
+  folder: TreeFolder<T>;
+  depth: number;
+  open: boolean;
+  onToggle: () => void;
+  control: React.ReactNode;
+}) {
+  const chevron = <ChevronRight className={cn('size-3 shrink-0 transition-transform', open && 'rotate-90')} />;
+  const label = (
+    <>
+      <Folder className="size-3 shrink-0" />
+      <span className="min-w-0 flex-1 truncate text-left font-medium">{folder.name}</span>
+      <span className="text-[10px] text-faint">{folder.count}</span>
+    </>
+  );
+  if (!control) {
+    return (
+      <button
+        type="button"
+        className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-xs text-muted hover:bg-surface-raised"
+        style={{ paddingLeft: 8 + depth * 14 }}
+        onClick={onToggle}
+      >
+        {chevron}
+        {label}
+      </button>
+    );
+  }
+  return (
+    <div
+      data-tree-folder={folder.path}
+      className="group/folder flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-xs text-muted hover:bg-surface-raised"
+      style={{ paddingLeft: 8 + depth * 14 }}
+    >
+      <button
+        type="button"
+        aria-label={`${open ? 'Collapse' : 'Expand'} ${folder.name}`}
+        className="-mr-1 flex shrink-0 items-center"
+        onClick={onToggle}
+      >
+        {chevron}
+      </button>
+      {control}
+      <button type="button" className="flex min-w-0 flex-1 items-center gap-1.5" onClick={onToggle}>
+        {label}
+      </button>
+    </div>
+  );
+}
+
 function TreeLevel<T>({
   folder,
   depth,
   collapsed,
   onToggle,
   renderFile,
+  folderControl,
 }: {
   folder: TreeFolder<T>;
   depth: number;
   collapsed: Set<string>;
   onToggle: (path: string) => void;
   renderFile: (item: T, depth: number) => React.ReactNode;
+  folderControl?: (folder: TreeFolder<T>) => React.ReactNode;
 }) {
   return (
     <>
       {folder.folders.map((child) => (
         <div key={child.path}>
-          <button
-            type="button"
-            className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-xs text-muted hover:bg-surface-raised"
-            style={{ paddingLeft: 8 + depth * 14 }}
-            onClick={() => onToggle(child.path)}
-          >
-            <ChevronRight
-              className={cn('size-3 shrink-0 transition-transform', !collapsed.has(child.path) && 'rotate-90')}
-            />
-            <Folder className="size-3 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left font-medium">{child.name}</span>
-            <span className="text-[10px] text-faint">{child.count}</span>
-          </button>
+          <FolderRow
+            folder={child}
+            depth={depth}
+            open={!collapsed.has(child.path)}
+            onToggle={() => onToggle(child.path)}
+            control={folderControl?.(child) ?? null}
+          />
           {!collapsed.has(child.path) && (
             <TreeLevel
               folder={child}
@@ -97,6 +155,7 @@ function TreeLevel<T>({
               collapsed={collapsed}
               onToggle={onToggle}
               renderFile={renderFile}
+              folderControl={folderControl}
             />
           )}
         </div>
@@ -164,6 +223,7 @@ export function FileTree<T>({
   fold,
   onFoldState,
   defaultCollapsed,
+  folderControl,
 }: {
   items: T[];
   pathOf: (item: T) => string;
@@ -171,6 +231,7 @@ export function FileTree<T>({
   fold?: FileTreeFold;
   onFoldState?: (state: FileTreeFoldState) => void;
   defaultCollapsed?: (folderPath: string) => boolean;
+  folderControl?: (folder: TreeFolder<T>) => React.ReactNode;
 }) {
   const root = useMemo(() => buildFileTree(items, pathOf), [items, pathOf]);
   const paths = useMemo(() => folderPaths(root), [root]);
@@ -198,6 +259,13 @@ export function FileTree<T>({
       return next;
     });
   return (
-    <TreeLevel folder={root} depth={0} collapsed={collapsed} onToggle={onToggle} renderFile={renderFile} />
+    <TreeLevel
+      folder={root}
+      depth={0}
+      collapsed={collapsed}
+      onToggle={onToggle}
+      renderFile={renderFile}
+      folderControl={folderControl}
+    />
   );
 }
