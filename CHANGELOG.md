@@ -7,10 +7,13 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
-
 - Staging or unstaging a multi-file selection no longer fails with "the index is
   locked": the selection goes to the engine as one call with a single index write
   instead of one call per file racing for the lock (#66)
+- **⌘⏎ no longer makes an empty commit.** With nothing staged the Commit button was
+  disabled, but the shortcut still committed; it now asks you to stage first, and the
+  engine refuses a commit that changes nothing (a merge still commits). A file filter
+  that hides the staged files no longer disables Commit or drops its file count.
 
 ## [0.22.0] — 2026-10-08
 
