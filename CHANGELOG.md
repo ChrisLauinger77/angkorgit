@@ -6,6 +6,13 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-10-13
+
+The working-copy release. Folders in the file tree stage and unstage as one, the
+diff marks the change you are standing on, Settings has a filter box, and a refused
+push tells you what the server said. The settings filter is noyobo's work, the
+multi-file staging fix is chrismo80's, the empty-commit guard is Bunthoeun Tok's.
+
 ### Added
 - **Filter settings by title or keyword.** The search field focuses when Settings
   opens, hides non-matching cards and sections, and accepts multiple terms. Enter
@@ -1734,7 +1741,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/cheat2001/angkorgit/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/cheat2001/angkorgit/compare/v0.20.0...v0.21.0
