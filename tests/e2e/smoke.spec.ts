@@ -2947,7 +2947,7 @@ test('settings filters cards, lands on the first hit and clears before closing',
   await profileLabel.fill('Draft profile');
   await profileLabel.press('Escape');
   await expect(filter).toHaveValue('');
-  await expect(filter).toBeFocused();
+  await expect(profileLabel).toBeFocused();
   await expect(profileLabel).toHaveValue('Draft profile');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await filter.fill('authentication');
@@ -2958,7 +2958,7 @@ test('settings filters cards, lands on the first hit and clears before closing',
   await token.fill('draft-token');
   await token.press('Escape');
   await expect(filter).toHaveValue('');
-  await expect(filter).toBeFocused();
+  await expect(token).toBeFocused();
   await expect(token).toHaveValue('draft-token');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await filter.fill('no-such-setting');

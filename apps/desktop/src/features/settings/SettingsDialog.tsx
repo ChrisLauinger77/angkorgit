@@ -1036,7 +1036,9 @@ export function SettingsDialog() {
           event.preventDefault();
           event.stopPropagation();
           setQuery('');
-          searchRef.current?.focus();
+          if (!(document.activeElement instanceof HTMLElement) || document.activeElement === document.body) {
+            searchRef.current?.focus();
+          }
         }}
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
