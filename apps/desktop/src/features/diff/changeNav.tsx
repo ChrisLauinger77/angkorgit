@@ -83,11 +83,9 @@ export function useChangeJump(
   options: { arrowKeys?: boolean; ready?: boolean } = {},
 ): ChangeJump {
   const cursorRef = useRef<ChangeCursor | null>(null);
-  const [active, setActive] = useState<number | null>(null);
-
-  useEffect(() => {
-    setActive(null);
-  }, [blocks]);
+  const [activeState, setActiveState] = useState<{ blocks: ChangeBlock[]; index: number } | null>(null);
+  const setActive = (index: number | null) => setActiveState(index === null ? null : { blocks, index });
+  const active = activeState !== null && activeState.blocks === blocks ? activeState.index : null;
 
   const settledCursor = (el: HTMLElement): ChangeCursor | null => {
     const cursor = cursorRef.current;
@@ -167,7 +165,7 @@ export function useChangeJump(
     jump: (d) => api.current.jump(d),
     step: (d) => api.current.step(d),
     anchor: (i) => api.current.anchor(i),
-    active: active !== null && active < blocks.length ? active : null,
+    active,
   };
 }
 

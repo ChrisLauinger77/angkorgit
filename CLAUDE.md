@@ -1647,8 +1647,15 @@ features/
 │                               flattenDiff builds, so logicalRows pushes a header row ONLY
 │                               when hunk.header is set); useChangeJump keeps `active`
 │                               (index | null) in state — set by anchor() (the auto-jump),
-│                               step() (→) and jump() (n/p), reset when `blocks` changes
-│                               — and DiffPanel/FileHistoryPanel pass blocks[active] as
+│                               step() (→) and jump() (n/p); the state stores the `blocks`
+│                               array it was set for and reads as null once a different
+│                               list is rendered. NEVER reset it from a useEffect on
+│                               `blocks` (owner screenshot 2026-10-13, "2 changes" instead
+│                               of "1 of 2" on open): in the installed app the diff and
+│                               its blocks land in the SAME commit as the auto-jump's
+│                               layout effect, so a passive reset ran after anchor(0) and
+│                               wiped it; the demo's two-commit load hid it in the e2e —
+│                               and DiffPanel/FileHistoryPanel pass blocks[active] as
 │                               DiffViewer `activeRows`: the row's GUTTER cell (inline) or
 │                               the OLD-side gutter (split) and the wrapped rows get
 │                               ACTIVE_CHANGE_CLASS (inset 3px primary bar, data-change-
