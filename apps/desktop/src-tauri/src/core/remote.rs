@@ -603,6 +603,7 @@ pub fn push(
     prime_account_bindings(Some(&repo));
     let mut remote = repo.find_remote(remote_name)?;
     let rejected: std::sync::Arc<Mutex<Vec<(String, String)>>> = Default::default();
+    let server_said: std::sync::Arc<Mutex<Vec<u8>>> = Default::default();
     let mut callbacks = make_callbacks();
     {
         let rejected = std::sync::Arc::clone(&rejected);
@@ -615,6 +616,14 @@ pub fn push(
             }
             Ok(())
         });
+        let server_said = std::sync::Arc::clone(&server_said);
+        callbacks.sideband_progress(move |data| {
+            let mut buffer = server_said.lock().unwrap();
+            if buffer.len() < SERVER_MESSAGE_CAP {
+                buffer.extend_from_slice(data);
+            }
+            true
+        });
     }
     let mut opts = PushOptions::new();
     opts.remote_callbacks(callbacks);
@@ -622,7 +631,12 @@ pub fn push(
     remote.push(&specs, Some(&mut opts))?;
     let rejected = std::mem::take(&mut *rejected.lock().unwrap());
     if !rejected.is_empty() {
-        return Err(AppError::other(rejection_message(remote_name, &rejected)));
+        let said = server_lines(&server_said.lock().unwrap());
+        return Err(AppError::other(rejection_message(
+            remote_name,
+            &rejected,
+            &said,
+        )));
     }
     track_upstream(&repo)?;
 
@@ -635,7 +649,33 @@ pub fn push(
     })
 }
 
-pub(crate) fn rejection_message(remote_name: &str, rejected: &[(String, String)]) -> String {
+const SERVER_MESSAGE_CAP: usize = 8 * 1024;
+const SERVER_MESSAGE_LINES: usize = 12;
+
+pub(crate) fn server_lines(raw: &[u8]) -> Vec<String> {
+    let text = String::from_utf8_lossy(raw);
+    let mut lines: Vec<String> = Vec::new();
+    for line in text.split(['\n', '\r']) {
+        let line = line.trim();
+        let line = line.strip_prefix("remote:").map(str::trim).unwrap_or(line);
+        let line = line.trim_matches(|c: char| c == '=' || c == '-' || c == '*' || c == '!');
+        let line = line.trim();
+        if line.is_empty() || lines.last().is_some_and(|last| last == line) {
+            continue;
+        }
+        lines.push(line.to_string());
+        if lines.len() == SERVER_MESSAGE_LINES {
+            break;
+        }
+    }
+    lines
+}
+
+pub(crate) fn rejection_message(
+    remote_name: &str,
+    rejected: &[(String, String)],
+    server_said: &[String],
+) -> String {
     let describe = |(refname, reason): &(String, String)| {
         let (kind, name) = if let Some(tag) = refname.strip_prefix("refs/tags/") {
             ("tag", tag)
@@ -647,10 +687,15 @@ pub(crate) fn rejection_message(remote_name: &str, rejected: &[(String, String)]
         format!("{kind} {name} ({reason})")
     };
     let list = rejected.iter().map(describe).collect::<Vec<_>>().join(", ");
-    format!(
+    let mut message = format!(
         "{remote_name} rejected {list}. Nothing else from this push was rolled back; fix the \
          rejected ref and push again."
-    )
+    );
+    if !server_said.is_empty() {
+        message.push_str("\nThe server said:\n");
+        message.push_str(&server_said.join("\n"));
+    }
+    message
 }
 
 fn tracking_ref_matches(repo: &Repository, remote_name: &str, branch_name: &str) -> bool {
@@ -887,6 +932,7 @@ mod tests {
                     "non-fast-forward".to_string(),
                 ),
             ],
+            &[],
         );
         assert!(
             message.starts_with(
@@ -895,6 +941,46 @@ mod tests {
             "{message}"
         );
         assert!(!message.contains("refs/"));
+        assert!(!message.contains("The server said"));
+    }
+
+    #[test]
+    fn rejection_message_quotes_what_the_server_said() {
+        let said = super::server_lines(
+            b"remote: \nremote: error: GH006: Protected branch update failed for refs/heads/main.\r\n\
+              remote: error: GH006: Protected branch update failed for refs/heads/main.\n\
+              remote: ----------------------------------------------------------\n\
+              remote: error: Changes must be made through a pull request.\n\n",
+        );
+        assert_eq!(
+            said,
+            vec![
+                "error: GH006: Protected branch update failed for refs/heads/main.".to_string(),
+                "error: Changes must be made through a pull request.".to_string(),
+            ]
+        );
+        let message = super::rejection_message(
+            "origin",
+            &[(
+                "refs/heads/main".to_string(),
+                "pre-receive hook declined".to_string(),
+            )],
+            &said,
+        );
+        assert!(message.starts_with("origin rejected branch main (pre-receive hook declined)."));
+        assert!(message.ends_with(
+            "The server said:\nerror: GH006: Protected branch update failed for refs/heads/main.\n\
+             error: Changes must be made through a pull request."
+        ));
+    }
+
+    #[test]
+    fn server_lines_cap_the_quoted_output() {
+        let noisy = (0..40).map(|i| format!("line {i}\n")).collect::<String>();
+        let said = super::server_lines(noisy.as_bytes());
+        assert_eq!(said.len(), super::SERVER_MESSAGE_LINES);
+        assert_eq!(said[0], "line 0");
+        assert!(super::server_lines(b"\n   \n=====\n").is_empty());
     }
 
     use super::*;

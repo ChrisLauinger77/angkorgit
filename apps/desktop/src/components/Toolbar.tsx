@@ -448,7 +448,12 @@ export function Toolbar({ onRefresh }: { onRefresh: () => Promise<void> }) {
         setPushRejected(true);
         return;
       }
-      toast.error(`${label} failed: ${(error as { message?: string }).message ?? error}`);
+      const text = String((error as { message?: string }).message ?? error);
+      const [headline, ...rest] = text.split('\n');
+      toast.error(`${label} failed: ${headline}`, {
+        description: rest.length > 0 ? <span className="whitespace-pre-line font-mono text-[11px]">{rest.join('\n')}</span> : undefined,
+        duration: rest.length > 0 ? 12_000 : undefined,
+      });
     } finally {
       setBusy(null);
     }
