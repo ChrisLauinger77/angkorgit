@@ -2505,10 +2505,17 @@ test('ignore whitespace hides an indent-only change and turns staging off', asyn
   await expect(diff.getByText('+0', { exact: true })).toBeVisible();
   await expect(diff.getByText('Only whitespace changes found')).toBeVisible();
   await expect(diff.getByRole('button', { name: 'Stage hunk' })).toHaveCount(0);
-  await diff.getByRole('button', { name: 'View options' }).click();
+  await expect(page.getByRole('menu')).toBeVisible();
   await expect(page.getByRole('menu').getByText('not the patch git would apply')).toBeVisible();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Word diff' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('menuitemcheckbox', { name: 'Word diff' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Word diff' })).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.getByRole('menuitemcheckbox', { name: 'Word diff' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Word diff' })).toHaveAttribute('aria-checked', 'true');
 
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
   await page.getByText('ipc.ts', { exact: true }).first().click();
   const token = page.locator('section[aria-label="Diff for src/core/ipc.ts"]');
   await expect(token.getByText('+22', { exact: true })).toBeVisible();
@@ -2971,4 +2978,74 @@ test('settings filters cards, lands on the first hit and clears before closing',
   await page.locator('[data-ai-status]').click();
   await expect(dialog.getByRole('heading', { name: 'AI Assistant', exact: true })).toBeVisible();
   await expect(filter).toBeFocused();
+});
+
+test('folder rows in the working copy tree stage and unstage everything inside them', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.evaluate(async () => {
+    const { ipc } = await import('/src/core/ipc.ts');
+    const calls = ((window as unknown as { __stageCalls: unknown[] }).__stageCalls = [] as unknown[]);
+    ipc.stageFiles = async (_path, files) => void calls.push(['stage', files]);
+    ipc.unstageFiles = async (_path, files) => void calls.push(['unstage', files]);
+  });
+  await page.getByRole('button', { name: 'Folder tree' }).click();
+  const srcFolder = page.locator('[data-tree-folder="src"]').first();
+  await expect(srcFolder).toBeVisible();
+  const stageSrc = page.getByRole('checkbox', { name: 'Stage every change in src', exact: true });
+  await expect(stageSrc).toHaveAttribute('data-state', 'unchecked');
+  await stageSrc.click();
+  await expect(srcFolder).toBeVisible();
+  const unstageSrc = page.getByRole('checkbox', { name: 'Unstage every change in src/features/graph', exact: true });
+  await expect(unstageSrc).toHaveAttribute('data-state', 'checked');
+  await unstageSrc.click();
+  const calls = await page.evaluate(() => (window as unknown as { __stageCalls: unknown[] }).__stageCalls);
+  expect(calls).toEqual([
+    ['stage', ['src/indent.txt', 'src/core/ipc.ts', 'src/data/palette-seed.sql', 'src/features/repository/components/working-copy/deeply/nested/WorkingCopyFileListItemContainerFactory.tsx']],
+    ['unstage', ['src/features/graph/CommitGraph.tsx']],
+  ]);
+  await srcFolder.getByRole('button', { name: 'Collapse src', exact: true }).click();
+  await expect(page.getByText('ipc.ts', { exact: true })).toHaveCount(0);
+  await srcFolder.getByRole('button', { name: 'Expand src', exact: true }).click();
+  await expect(page.getByText('ipc.ts', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'All files' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Stage every change in src', exact: true })).toHaveAttribute('data-state', 'indeterminate');
+});
+
+test('stepping through changes marks the active one and counts it in the header', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.getByText('CommitGraph.tsx', { exact: true }).first().click();
+  const diff = page.locator('section[aria-label="Diff for src/features/graph/CommitGraph.tsx"]');
+  await expect(diff).toBeVisible();
+  const count = diff.locator('[data-change-count]');
+  await expect(count).toHaveText(/^1 of \d+ changes$/);
+  const total = Number((await count.textContent())!.match(/of (\d+)/)![1]);
+  expect(total).toBeGreaterThan(2);
+  const activeRows = () => diff.locator('[data-change-active]');
+  await expect(activeRows().first()).toBeVisible();
+  const firstTop = await activeRows().first().boundingBox();
+  await page.keyboard.press('n');
+  await expect(count).toHaveText(`2 of ${total} changes`);
+  await expect(activeRows().first()).toBeVisible();
+  const secondTop = await activeRows().first().boundingBox();
+  expect(secondTop!.y).not.toBe(firstTop!.y);
+  await diff.getByRole('button', { name: 'Next change' }).click();
+  await expect(count).toHaveText(`3 of ${total} changes`);
+  await page.keyboard.press('p');
+  await expect(count).toHaveText(`2 of ${total} changes`);
+  await diff.getByRole('button', { name: 'Side-by-side diff' }).click();
+  await expect(count).toHaveText(/^\d+ changes$/);
+  await expect(activeRows()).toHaveCount(0);
+  await page.keyboard.press('n');
+  await expect(count).toHaveText(/^\d+ of \d+ changes$/);
+  await expect(activeRows().first()).toBeVisible();
+  await diff.getByRole('button', { name: 'View options' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Wrap long lines' }).click();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('n');
+  await expect(count).toHaveText(/^\d+ of \d+ changes$/);
+  await expect(activeRows().first()).toBeVisible();
 });

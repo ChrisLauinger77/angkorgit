@@ -11,6 +11,22 @@ All notable changes to AngKorGit are documented here. The format follows
   opens, hides non-matching cards and sections, and accepts multiple terms. Enter
   lands on the first match with a locate flash. Escape clears the filter before
   closing; closing resets it, and opening a specific section still works. (#33)
+- **Stage or unstage a whole folder.** In the working copy's folder tree every folder
+  row carries the same checkbox its files have: unticked under Changes (tick to stage
+  everything inside, recursively), ticked under Staged (untick to unstage it all), and
+  half-filled in All files when a folder holds both. The chevron and the name still
+  fold the folder. (#65)
+- **The current change is marked.** Stepping with N / P, → or the header chevrons
+  draws a gold bar along the left edge of the change you landed on and the header counts
+  "2 of 7 changes", so you can tell which change is the active one in a long diff. The
+  file history diff gets the same marker. (#75)
+- **View options stays open.** Toggling Word diff, Ignore whitespace, Wrap or Show
+  whole file no longer closes the menu, so several options can be changed in one go;
+  Escape or a click outside closes it. (#67)
+- **Push refusals quote the server.** When a remote refuses a ref (a protected branch,
+  a pre-receive hook) the failure toast now carries what the server printed, such as
+  GitHub's "Changes must be made through a pull request", under the one-line reason.
+  (#76)
 
 ### Fixed
 - Staging or unstaging a multi-file selection no longer fails with "the index is
