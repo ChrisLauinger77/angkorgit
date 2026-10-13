@@ -4,6 +4,7 @@ import type { DiffLine, FileDiff } from '@angkorgit/core';
 import { clipRenderedLine } from '@angkorgit/core';
 import { cn } from '@angkorgit/design-system';
 import { CodeLine, lineBg, pairHunkLines, type SearchRanges } from './diffShared';
+import { rowInRange, type RowRange } from './DiffMinimap';
 import { useStableSelection } from './diffSelection';
 import { panControllers } from './pan';
 
@@ -162,7 +163,10 @@ interface CommonProps {
   hunkActions?: (hunkIndex: number) => React.ReactNode;
   onLineContextMenu?: (event: React.MouseEvent, info: LineMenuInfo) => void;
   search?: SearchRanges;
+  activeRows?: RowRange;
 }
+
+export const ACTIVE_CHANGE_CLASS = 'shadow-[inset_3px_0_0_0_hsl(var(--primary))]';
 
 function rangeRect(
   container: HTMLElement,
@@ -462,7 +466,16 @@ function HeaderContent({
   );
 }
 
-export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunkActions, onLineContextMenu, search }: CommonProps) {
+export function VirtualInlineDiff({
+  rows,
+  language,
+  useWordDiff,
+  scrollRef,
+  hunkActions,
+  onLineContextMenu,
+  search,
+  activeRows,
+}: CommonProps) {
   const virtualizer = useDiffVirtualizer(rows, scrollRef);
   const items = virtualizer.getVirtualItems();
   const total = virtualizer.getTotalSize();
@@ -489,9 +502,11 @@ export function VirtualInlineDiff({ rows, language, useWordDiff, scrollRef, hunk
             return (
               <div
                 key={item.key}
+                data-change-active={rowInRange(item.index, activeRows) || undefined}
                 className={cn(
                   'absolute left-0 flex w-full',
                   row.kind === 'header' ? 'border-y border-border-subtle bg-surface-raised/60' : lineBg(row.kind === 'line' ? row.line.kind : 'context'),
+                  rowInRange(item.index, activeRows) && ACTIVE_CHANGE_CLASS,
                 )}
                 style={{ top: 0, height: item.size, transform: `translateY(${item.start}px)` }}
               >
@@ -590,6 +605,7 @@ function SplitHalf({
   paneRef,
   layerRef,
   search,
+  activeRows,
 }: CommonProps & {
   items: ReturnType<ReturnType<typeof useDiffVirtualizer>['getVirtualItems']>;
   total: number;
@@ -612,10 +628,12 @@ function SplitHalf({
         {items.map((item) => {
           const row = rows[item.index];
           const line = row.kind === 'pair' ? (side === 'old' ? row.left : row.right) : null;
+          const active = side === 'old' && rowInRange(item.index, activeRows);
           return (
             <div
               key={item.key}
-              className={cn('absolute left-0 w-full', bgOf(row))}
+              data-change-active={active || undefined}
+              className={cn('absolute left-0 w-full', bgOf(row), active && ACTIVE_CHANGE_CLASS)}
               style={{ top: 0, height: item.size, transform: `translateY(${item.start}px)` }}
             >
               {line && (

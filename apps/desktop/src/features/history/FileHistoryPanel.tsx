@@ -100,7 +100,8 @@ export function FileHistoryPanel({ file }: { file: string }) {
   const listScrollRef = useRef<HTMLDivElement>(null);
   const textDiff = diff && !diff.isBinary && !diff.isImage ? diff : null;
   const blocks = useMemo(() => (textDiff ? changeBlocks(textDiff, diffView) : []), [textDiff, diffView]);
-  const { jump: jumpChange } = useChangeJump(blocks, scrollRef);
+  const { jump: jumpChange, active: activeChange } = useChangeJump(blocks, scrollRef);
+  const activeRows = activeChange !== null ? blocks[activeChange] : undefined;
   const { findBar, search } = useDiffFind(textDiff, scrollRef);
   const { selectAllOverlay, selectSide } = useDiffSelectAll(textDiff, scrollRef);
   const [commitMenu, setCommitMenu] = useState<{ x: number; y: number; commit: CommitInfo } | null>(null);
@@ -333,7 +334,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
             <FileText className="size-3.5" />
           </Button>
         </Hint>
-        <ChangeNavButtons blocks={blocks} onJump={jumpChange} />
+        <ChangeNavButtons blocks={blocks} active={activeChange} onJump={jumpChange} />
           </>
         )}
       </div>
@@ -474,6 +475,7 @@ export function FileHistoryPanel({ file }: { file: string }) {
                 diff={diff}
                 scrollRef={scrollRef}
                 search={search}
+                activeRows={activeRows}
                 onLineContextMenu={(e, info) => {
                   e.preventDefault();
                   setLineMenu({

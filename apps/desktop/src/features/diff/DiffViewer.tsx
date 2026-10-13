@@ -5,7 +5,8 @@ import { cn, PaneEmpty } from '@angkorgit/design-system';
 import { useUi } from '@/features/ui/store';
 import { languageOf } from '@/shared/highlight';
 import { CodeLine, gutter, lineBg, pairHunkLines, prepareLineStates, wrapUnavailable, type SearchRanges } from './diffShared';
-import { flattenDiff, VirtualInlineDiff, VirtualSplitDiff, type LineMenuInfo } from './VirtualDiff';
+import { ACTIVE_CHANGE_CLASS, flattenDiff, VirtualInlineDiff, VirtualSplitDiff, type LineMenuInfo } from './VirtualDiff';
+import { rowInRange, type RowRange } from './DiffMinimap';
 
 interface HunkProps {
   hunk: DiffHunk;
@@ -14,6 +15,12 @@ interface HunkProps {
   actions?: React.ReactNode;
   search?: SearchRanges;
   wrap?: boolean;
+  rowOffset?: number;
+  activeRows?: RowRange;
+}
+
+function activeRow(rowOffset: number | undefined, i: number, activeRows: RowRange | undefined): boolean {
+  return rowOffset !== undefined && rowInRange(rowOffset + i, activeRows);
 }
 
 function searchTint(line: DiffLine | null, search?: SearchRanges): React.CSSProperties | undefined {
@@ -37,7 +44,7 @@ function HunkHeader({ hunk, actions }: { hunk: DiffHunk; actions?: React.ReactNo
   );
 }
 
-function WrappedInlineHunk({ hunk, language, useWordDiff, actions, search, wrap = true }: HunkProps) {
+function WrappedInlineHunk({ hunk, language, useWordDiff, actions, search, wrap = true, rowOffset, activeRows }: HunkProps) {
   const pairs = useMemo(() => pairHunkLines(hunk), [hunk]);
   const counterpart = useMemo(() => {
     const map = new Map();
@@ -56,9 +63,10 @@ function WrappedInlineHunk({ hunk, language, useWordDiff, actions, search, wrap 
       {hunk.lines.map((line, i) => (
         <div
           key={i}
-          className={cn('flex', lineBg(line.kind))}
+          className={cn('flex', lineBg(line.kind), activeRow(rowOffset, i, activeRows) && ACTIVE_CHANGE_CLASS)}
           style={searchTint(line, search)}
           data-search-current={isCurrent(line, search)}
+          data-change-active={activeRow(rowOffset, i, activeRows) || undefined}
         >
           <span className="w-10 shrink-0 select-none border-r border-border-subtle pr-1.5 text-right font-mono text-[10px] leading-5 text-faint">
             {gutter(line.oldLineNo)}
@@ -91,17 +99,18 @@ function WrappedInlineHunk({ hunk, language, useWordDiff, actions, search, wrap 
   );
 }
 
-function WrappedSplitHunk({ hunk, language, useWordDiff, actions, search }: HunkProps) {
+function WrappedSplitHunk({ hunk, language, useWordDiff, actions, search, rowOffset, activeRows }: HunkProps) {
   const pairs = useMemo(() => pairHunkLines(hunk), [hunk]);
   return (
     <div>
       <HunkHeader hunk={hunk} actions={actions} />
       {pairs.map((pair, i) => (
-        <div key={i} className="flex">
+        <div key={i} className="flex" data-change-active={activeRow(rowOffset, i, activeRows) || undefined}>
           <div
             className={cn(
               'flex w-1/2 border-r border-border-subtle',
               pair.left ? lineBg(pair.left.kind === 'context' ? 'context' : 'deletion') : 'bg-surface-raised/40',
+              activeRow(rowOffset, i, activeRows) && ACTIVE_CHANGE_CLASS,
             )}
             style={searchTint(pair.left, search)}
             data-search-current={isCurrent(pair.left, search)}
@@ -195,6 +204,7 @@ export function DiffViewer({
   hunkActions,
   onLineContextMenu,
   search,
+  activeRows,
   stacked = false,
 }: {
   diff: FileDiff;
@@ -202,6 +212,7 @@ export function DiffViewer({
   hunkActions?: (hunkIndex: number) => React.ReactNode;
   onLineContextMenu?: (event: React.MouseEvent, info: LineMenuInfo) => void;
   search?: SearchRanges;
+  activeRows?: RowRange;
   stacked?: boolean;
 }) {
   const diffView = useUi((s) => s.diffView);
@@ -246,13 +257,17 @@ export function DiffViewer({
       hunkActions,
       onLineContextMenu,
       search,
+      activeRows,
     };
     return split ? <VirtualSplitDiff {...props} /> : <VirtualInlineDiff {...props} />;
   }
 
+  let rowOffset = 0;
   return (
     <div className={cn(!wrap && 'min-w-max')}>
       {diff.hunks.map((hunk, i) => {
+        const firstRow = rowOffset + (hunk.header ? 1 : 0);
+        rowOffset = firstRow + (split ? pairHunkLines(hunk).length : hunk.lines.length);
         const props: HunkProps = {
           hunk,
           language,
@@ -260,6 +275,8 @@ export function DiffViewer({
           actions: hunkActions?.(i),
           search,
           wrap,
+          rowOffset: activeRows ? firstRow : undefined,
+          activeRows,
         };
         return split ? <WrappedSplitHunk key={i} {...props} /> : <WrappedInlineHunk key={i} {...props} />;
       })}

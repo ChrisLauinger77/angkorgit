@@ -8,7 +8,7 @@ type RowKind = 'header' | 'context' | 'addition' | 'deletion' | 'mixed';
 function logicalRows(diff: FileDiff, view: DiffViewMode): RowKind[] {
   const rows: RowKind[] = [];
   for (const hunk of diff.hunks) {
-    rows.push('header');
+    if (hunk.header) rows.push('header');
     if (view === 'inline') {
       for (const line of hunk.lines) rows.push(line.kind);
     } else {
@@ -28,6 +28,8 @@ function logicalRows(diff: FileDiff, view: DiffViewMode): RowKind[] {
 export interface ChangeBlock {
   fraction: number;
   kind: RowKind;
+  start: number;
+  end: number;
 }
 
 export function changeBlocks(diff: FileDiff, view: DiffViewMode): ChangeBlock[] {
@@ -38,13 +40,24 @@ export function changeBlocks(diff: FileDiff, view: DiffViewMode): ChangeBlock[] 
   rows.forEach((kind, index) => {
     const changed = kind === 'addition' || kind === 'deletion' || kind === 'mixed';
     if (changed && !inBlock) {
-      blocks.push({ fraction: index / total, kind });
+      blocks.push({ fraction: index / total, kind, start: index, end: index });
       inBlock = true;
-    } else if (!changed) {
+    } else if (changed) {
+      blocks[blocks.length - 1].end = index;
+    } else {
       inBlock = false;
     }
   });
   return blocks;
+}
+
+export interface RowRange {
+  start: number;
+  end: number;
+}
+
+export function rowInRange(index: number, range: RowRange | undefined): boolean {
+  return range !== undefined && index >= range.start && index <= range.end;
 }
 
 export function scrollToFraction(

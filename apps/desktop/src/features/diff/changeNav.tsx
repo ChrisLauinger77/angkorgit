@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Hint, Kbd, Separator } from '@angkorgit/design-system';
 import { useShortcuts } from '@/shared/useShortcuts';
@@ -20,14 +20,22 @@ function targetTop(el: HTMLElement, fraction: number): number {
   return Math.min(max, Math.max(0, fraction * el.scrollHeight - el.clientHeight * 0.35));
 }
 
-export function jumpToChange(el: HTMLElement, blocks: ChangeBlock[], direction: JumpDirection): void {
-  if (blocks.length === 0 || el.scrollHeight === 0) return;
+export function jumpToChange(el: HTMLElement, blocks: ChangeBlock[], direction: JumpDirection): number | null {
+  if (blocks.length === 0 || el.scrollHeight === 0) return null;
   const current = viewedFraction(el);
-  const next =
-    direction === 1
-      ? (blocks.find((b) => b.fraction > current + POSITION_EPSILON) ?? blocks[0])
-      : ([...blocks].reverse().find((b) => b.fraction < current - POSITION_EPSILON) ?? blocks[blocks.length - 1]);
-  scrollToFraction(el, next.fraction);
+  let next: number;
+  if (direction === 1) {
+    const found = blocks.findIndex((b) => b.fraction > current + POSITION_EPSILON);
+    next = found >= 0 ? found : 0;
+  } else {
+    let found = -1;
+    blocks.forEach((b, i) => {
+      if (b.fraction < current - POSITION_EPSILON) found = i;
+    });
+    next = found >= 0 ? found : blocks.length - 1;
+  }
+  scrollToFraction(el, blocks[next].fraction);
+  return next;
 }
 
 export interface ChangeCursor {
@@ -59,6 +67,7 @@ export interface ChangeJump {
   jump: (direction: JumpDirection) => void;
   step: (direction: JumpDirection) => boolean;
   anchor: (index: number | null) => void;
+  active: number | null;
 }
 
 let openDiffStepper: ((direction: JumpDirection) => boolean) | null = null;
@@ -74,41 +83,64 @@ export function useChangeJump(
   options: { arrowKeys?: boolean; ready?: boolean } = {},
 ): ChangeJump {
   const cursorRef = useRef<ChangeCursor | null>(null);
+  const [active, setActive] = useState<number | null>(null);
+
+  useEffect(() => {
+    setActive(null);
+  }, [blocks]);
+
+  const settledCursor = (el: HTMLElement): ChangeCursor | null => {
+    const cursor = cursorRef.current;
+    const settled =
+      cursor !== null &&
+      cursor.blocks === blocks &&
+      (Math.abs(el.scrollTop - cursor.top) <= CURSOR_TOLERANCE_PX || Date.now() - cursor.at < SMOOTH_SCROLL_SETTLE_MS);
+    return settled ? cursor : null;
+  };
 
   const jump = (direction: JumpDirection) => {
     const el = scrollRef.current;
     if (!el) return;
-    cursorRef.current = null;
-    jumpToChange(el, blocks, direction);
+    const cursor = settledCursor(el);
+    if (cursor === null) {
+      cursorRef.current = null;
+      setActive(jumpToChange(el, blocks, direction));
+      return;
+    }
+    const next = nextChangeIndex(blocks, viewedFraction(el), cursor.index, direction);
+    if (next === null) return;
+    const fraction = blocks[next].fraction;
+    cursorRef.current = { blocks, index: next, top: targetTop(el, fraction), at: Date.now() };
+    setActive(next);
+    scrollToFraction(el, fraction);
   };
 
   const anchor = (index: number | null) => {
     const el = scrollRef.current;
     if (!el || index === null) {
       cursorRef.current = null;
+      setActive(null);
       return;
     }
     cursorRef.current = { blocks, index, top: el.scrollTop, at: 0 };
+    setActive(index);
   };
 
   const step = (direction: JumpDirection): boolean => {
     if (options.ready === false) return true;
     const el = scrollRef.current;
     if (!el || blocks.length === 0) return false;
-    const cursor = cursorRef.current;
-    const settled =
-      cursor !== null &&
-      cursor.blocks === blocks &&
-      (Math.abs(el.scrollTop - cursor.top) <= CURSOR_TOLERANCE_PX || Date.now() - cursor.at < SMOOTH_SCROLL_SETTLE_MS);
-    const next = nextChangeIndex(blocks, viewedFraction(el), settled ? cursor.index : null, direction);
+    const cursor = settledCursor(el);
+    const next = nextChangeIndex(blocks, viewedFraction(el), cursor ? cursor.index : null, direction);
     if (next === null) return false;
     const fraction = blocks[next].fraction;
     cursorRef.current = { blocks, index: next, top: targetTop(el, fraction), at: Date.now() };
+    setActive(next);
     scrollToFraction(el, fraction);
     return true;
   };
 
-  const api = useRef<ChangeJump>({ jump, step, anchor });
+  const api = useRef<Omit<ChangeJump, 'active'>>({ jump, step, anchor });
   api.current = { jump, step, anchor };
 
   useShortcuts(
@@ -131,15 +163,22 @@ export function useChangeJump(
     };
   }, [arrowKeys]);
 
-  return { jump: (d) => api.current.jump(d), step: (d) => api.current.step(d), anchor: (i) => api.current.anchor(i) };
+  return {
+    jump: (d) => api.current.jump(d),
+    step: (d) => api.current.step(d),
+    anchor: (i) => api.current.anchor(i),
+    active: active !== null && active < blocks.length ? active : null,
+  };
 }
 
 export function ChangeNavButtons({
   blocks,
+  active = null,
   onJump,
   showCount = true,
 }: {
   blocks: ChangeBlock[];
+  active?: number | null;
   onJump: (direction: JumpDirection) => void;
   showCount?: boolean;
 }) {
@@ -170,8 +209,8 @@ export function ChangeNavButtons({
         </Button>
       </Hint>
       {showCount && (
-        <span className="text-[10px] text-faint">
-          {blocks.length} change{blocks.length === 1 ? '' : 's'}
+        <span className="text-[10px] text-faint tabular-nums" data-change-count>
+          {active !== null ? `${active + 1} of ${blocks.length}` : blocks.length} change{blocks.length === 1 ? '' : 's'}
         </span>
       )}
     </>

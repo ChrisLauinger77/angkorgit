@@ -274,7 +274,9 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
     jump: jumpChange,
     step: stepChange,
     anchor: anchorChange,
+    active: activeChange,
   } = useChangeJump(blocks, scrollRef, { arrowKeys: true, ready: !!diff && !loading });
+  const activeRows = activeChange !== null ? blocks[activeChange] : undefined;
   stepChangeRef.current = stepChange;
   anchorChangeRef.current = anchorChange;
 
@@ -554,7 +556,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <ChangeNavButtons blocks={blocks} onJump={jumpChange} showCount={!compact} />
+        <ChangeNavButtons blocks={blocks} active={activeChange} onJump={jumpChange} showCount={!compact} />
         {siblings.length > 1 && fileIndex >= 0 && (
           <>
             <Separator orientation="vertical" className="mx-1 h-4" />
@@ -675,6 +677,7 @@ export function DiffPanel({ target }: { target: CenterDiffTarget }) {
             diff={diff}
             scrollRef={scrollRef}
             search={highlight}
+            activeRows={activeRows}
             onLineContextMenu={(e, info) => {
               e.preventDefault();
               setLineMenu({
