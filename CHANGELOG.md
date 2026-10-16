@@ -6,48 +6,45 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-10-16
+
+The tab strip release. A repository group fetches or pulls every repository in it
+with one click, the tabs share a small window the way a browser's do, on macOS they
+sit in the title bar, and the release notes now live inside the app. Fetch all and
+Pull all are ChrisLauinger77's work.
+
 ### Added
-- Right-click a group header on the start page to **Fetch all** or **Pull all
-  (fast-forward only)**. A live summary lists moved refs and commit ranges, unchanged
-  repositories, skipped repositories with reasons, and failures. Pull follows each
-  checked-out branch's configured upstream and skips detached HEADs, unfinished
-  operations, diverged history, and local changes that conflict with safe checkout.
-  Unrelated untracked files and staged or unstaged edits are preserved. Cancel stops the remaining batch,
-  prevents later ref/worktree updates, and releases the app even if a network read is
-  stalled; completed updates are kept. Partial fetches have a single outcome in the
-  summary, including when a remote succeeds without moving refs. Missing upstream
-  refs are reported separately from unconfigured upstreams. Ref-update errors
-  after checkout explicitly explain the working-tree/branch mismatch; abandoned run
-  entries expire on later registry activity.
-  Group pull uses the same checkout behavior as toolbar Pull. The summary has flat
-  rows, toned badges, and a single-line counts strip. Per-remote prune settings
-  override fetch.prune, including an explicit false. Completed checkouts retain their
-  result when cancelling; settled summary rows ignore late responses and errors.
-  URL-based upstreams are supported. Fetch cancellation keeps successful remotes and
-  errors together, with ref summaries calculated outside the write guard; queued
-  repositories say they never started, and unchanged fetch badges match the counts.
-  Pull also handles upstreams outside a remote's fetch refspec. Cancellation preserves
-  completed results if one repository's ref summary becomes unavailable. (#69)
+- **Fetch all and Pull all for a group.** Right-click a group header on the start
+  page to fetch every remote of every repository in the group, or to fast-forward
+  each checked-out branch from its upstream. A live summary lists moved refs with
+  their commit counts, repositories that were already up to date, skips with the
+  reason (detached HEAD, diverged history, an unfinished operation, local changes
+  that conflict with the checkout) and failures, and a partial fetch keeps its
+  successes and errors together. Pull never merges or rebases and preserves
+  unrelated local changes, exactly like the toolbar Pull. Cancel stops the remaining
+  repositories, keeps what already finished and releases the app even while a
+  network read is stalled. Per-remote prune settings override `fetch.prune`.
+  Contributed by ChrisLauinger77. (#69)
+- **What's new inside the app.** A bell in the status bar and a "What's new" link
+  in the welcome footer open the release notes for every version, with the one you
+  are running marked and issue numbers linking to GitHub. The bell carries a dot
+  until you have read the notes for the version you are on.
 
 ### Changed
-- The tab strip now shares a narrow window the way a browser does: tabs shrink to fit,
+- The tab strip shares a narrow window the way a browser does: tabs shrink to fit,
   long names truncate, the close button stays only on the active tab, and the strip
-  only scrolls once every tab has reached its minimum width. Nothing changes in a wide
-  window.
+  only scrolls once every tab has reached its minimum width. A wide window looks
+  exactly as before.
 - On macOS the tabs sit in the title bar next to the traffic lights, like a browser,
-  instead of under an empty title row. Drag the window by the tab strip, double-click
-  it to zoom. Windows and Linux keep their native title bar.
-- **What's new inside the app.** A bell in the status bar and a "What's new" link in
-  the welcome footer open the release notes for every version, the one you are on
-  marked, with issue numbers linking to GitHub. The bell carries a dot until you have
-  read the notes for the version you are running.
+  instead of under an empty title row. Drag the window by the tab strip and
+  double-click it to zoom. Windows and Linux keep their native title bar.
 
 ### Fixed
-- Creating a pull request from a fork into the upstream repository with a fine-grained
-  GitHub token now says why GitHub refused it: such a token can only act on repositories
-  of the account it was created for, so it needs a classic token with the repo scope.
-  The same 403 on your own repository points at the missing pull request permission.
-  (#77)
+- Creating a pull request from a fork into the upstream repository with a
+  fine-grained GitHub token now says why GitHub refused it: such a token can only
+  act on repositories of the account it was created for, so it needs a classic token
+  with the repo scope. The same refusal on your own repository points at the missing
+  pull request permission. (#77)
 
 ## [0.23.0] — 2026-10-13
 
@@ -1784,7 +1781,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/cheat2001/angkorgit/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/cheat2001/angkorgit/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/cheat2001/angkorgit/compare/v0.21.0...v0.21.1

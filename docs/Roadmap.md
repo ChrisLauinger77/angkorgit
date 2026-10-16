@@ -1,10 +1,10 @@
 # Roadmap
 
-Updated for v0.23.0 (October 2026). [CHANGELOG.md](../CHANGELOG.md) is the
+Updated for v0.24.0 (October 2026). [CHANGELOG.md](../CHANGELOG.md) is the
 authoritative record of what shipped in each release; this file tracks
 direction.
 
-## Shipped (0.1.0 → 0.23.0)
+## Shipped (0.1.0 → 0.24.0)
 
 - [x] Repository: open, clone (with progress), recents, search, repository tabs (drag to reorder)
 - [x] Commit: stage files, hunks, and individual lines; unstage, commit, amend; per-repo commit drafts; multi-select in the working copy with bulk stage/unstage/stash/discard; discard for staged files; path filter over changed files and commit files
@@ -43,6 +43,7 @@ direction.
 - [x] Welcome: scan a folder for repositories at any depth and add them to recents in one go; same-named tabs show the parent folder that tells them apart; ⌘P switches repositories, ⌘T opens one in a new tab
 - [x] Diff: every file of a commit on one scrolling page (File / All files switch), side-by-side rows paired by similarity so an inserted line keeps its own row, minimap in step with the rows
 - [x] Remotes: Pull from / Push to any remote when a repository has several, the default following the branch upstream; a late search result never steals a clicked commit
+- [x] Groups and tabs: Fetch all and Pull all (fast-forward only) for a repository group with a live per-repository summary and cancel; tabs shrink to share a narrow window like a browser's and, on macOS, sit in the title bar next to the traffic lights; the release notes open inside the app from the status bar bell and the welcome footer
 
 ## Next
 
