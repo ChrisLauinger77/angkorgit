@@ -2894,7 +2894,7 @@ test('repositories can be grouped on the welcome page and a group opens as tabs'
   await expect(clusters.nth(0)).toContainText('Frontend');
   await page.keyboard.press('ControlOrMeta+1');
   await expect(page.locator('[data-tab-path="/Users/demo/projects/angkorgit"]')).toHaveAttribute('aria-selected', 'true');
-  await page.setViewportSize({ width: 380, height: 900 });
+  await page.setViewportSize({ width: 300, height: 900 });
   const overflow = page.locator('[data-tab-overflow]');
   await expect(overflow).toBeVisible();
   await overflow.click();
@@ -3201,4 +3201,45 @@ test('cancel counts a completed checkout and ignores a delayed inactive-run erro
   await expect(dialog.getByText('Group update is no longer active', { exact: true })).toBeHidden();
   await expect(dialog.getByRole('status')).toContainText('1 updated · 0 up to date · 0 skipped · 0 failed · 1 cancelled');
   await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+});
+
+test('tabs shrink to share a narrow window like browser tabs and scroll only past their minimum', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    const names = ['tycho', 'kirby', 'picasso', 'core.api', 'coloris', 'monika', 'crosspromotionmodule', 'promodia', 'schedudia', 'eyebreak', 'angkorgit'];
+    localStorage.setItem(
+      'angkorgit-ui',
+      JSON.stringify({ state: { repoTabs: names.map((name) => `/Users/demo/projects/${name}`), worktreeTabs: [] }, version: 0 }),
+    );
+  });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const strip = page.locator('[data-tab-strip]');
+  const tabs = page.getByRole('tab');
+  const longTab = page.locator('[data-tab-path="/Users/demo/projects/crosspromotionmodule"]');
+  await expect(tabs).toHaveCount(11);
+  await expect(strip).toHaveAttribute('data-tab-strip', 'full');
+  await expect(page.getByRole('button', { name: 'Close tycho' })).toBeVisible();
+  const wide = (await longTab.boundingBox())!;
+  await page.setViewportSize({ width: 820, height: 900 });
+  await expect(strip).toHaveAttribute('data-tab-strip', 'compact');
+  await expect(page.locator('[data-tab-overflow]')).toHaveCount(0);
+  const narrow = (await longTab.boundingBox())!;
+  expect(narrow.width).toBeLessThan(wide.width - 40);
+  const bar = (await strip.boundingBox())!;
+  for (let i = 0; i < 11; i++) {
+    const box = (await tabs.nth(i).boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(bar.x + bar.width + 1);
+  }
+  await expect(page.getByRole('button', { name: 'Close tycho' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Close angkorgit' })).toBeVisible();
+  await page.setViewportSize({ width: 480, height: 900 });
+  await expect(page.locator('[data-tab-overflow]')).toBeVisible();
+  expect((await longTab.boundingBox())!.width).toBeGreaterThanOrEqual(48);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(strip).toHaveAttribute('data-tab-strip', 'full');
+  await expect(page.getByRole('button', { name: 'Close tycho' })).toBeVisible();
+  expect(Math.abs((await longTab.boundingBox())!.width - wide.width)).toBeLessThan(2);
 });

@@ -55,6 +55,7 @@ import { isMac, modKey } from '@/shared/utils';
 
 const DRAG_TYPE = 'text/angkorgit-repo-tab';
 const GROUP_DRAG_TYPE = 'text/angkorgit-repo-group';
+const COMPACT_TAB_WIDTH = 112;
 const chipZone = (group: RepoGroup) => `group:${group.id}`;
 
 export function RepoTabs() {
@@ -78,7 +79,9 @@ export function RepoTabs() {
   const [draggingGroup, setDraggingGroup] = useState<string | null>(null);
   const [groupDrop, setGroupDrop] = useState<{ id: string; position: RepoGroupDropPosition } | null>(null);
   const [overflowing, setOverflowing] = useState(false);
+  const [compact, setCompact] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const clusters = tabClusters(tabs, groups, groupOf, worktreeMains);
   const groupIdOf = (path: string) => repoGroupIdFor(path, groupOf, worktreeMains);
@@ -133,6 +136,25 @@ export function RepoTabs() {
   const activate = (path: string) => void activateTab(path);
   const close = (path: string) => closeRepoTabs([path]);
   const groupIds = clusters.flatMap((cluster) => (cluster.group ? [cluster.group.id] : []));
+  const shownTabs = clusters.reduce(
+    (count, cluster) =>
+      count +
+      (cluster.group && tabGroupsCollapsed[cluster.group.id]
+        ? cluster.tabs.filter((path) => path === activePath).length
+        : cluster.tabs.length),
+    0,
+  );
+  const tabWeight = shownTabs + groupIds.length * 0.6;
+
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const measure = () => setCompact(tabWeight > 0 && bar.clientWidth / tabWeight < COMPACT_TAB_WIDTH);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [tabWeight]);
   const collapseOthers = (keep: string) =>
     setTabGroupsCollapsed(Object.fromEntries(groupIds.map((id) => [id, id !== keep])));
   const expandAll = () => setTabGroupsCollapsed(Object.fromEntries(groupIds.map((id) => [id, false])));
@@ -232,7 +254,9 @@ export function RepoTabs() {
           if (e.button === 1) close(path); // middle-click closes
         }}
         className={cn(
-          'group flex h-8 min-w-0 max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-t-md border border-b-0 px-3 text-xs',
+          'group flex h-8 max-w-56 shrink cursor-default items-center gap-1.5 rounded-t-md border border-b-0 text-xs',
+          compact ? 'px-2' : 'px-3',
+          active ? 'min-w-28' : shortcutFor(path) ? 'min-w-20' : 'min-w-12',
           active
             ? 'border-border-subtle bg-background text-foreground'
             : 'border-transparent text-muted hover:bg-surface-raised hover:text-foreground',
@@ -246,7 +270,7 @@ export function RepoTabs() {
             aria-label="Worktree"
           />
         )}
-        <span className={cn('min-w-0 truncate', labels.get(path)?.hint && 'max-w-full shrink-0')}>
+        <span className={cn('line-clamp-1 min-w-0 break-all', labels.get(path)?.hint && 'max-w-full shrink-0')}>
           {label(path)}
         </span>
         {labels.get(path)?.hint && (
@@ -275,6 +299,7 @@ export function RepoTabs() {
           className={cn(
             'shrink-0 rounded-sm p-0.5 hover:bg-surface-overlay hover:text-foreground',
             active ? 'text-muted' : 'text-transparent group-hover:text-muted',
+            compact && !active && 'hidden',
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -288,7 +313,11 @@ export function RepoTabs() {
   };
 
   return (
-    <div className="flex h-9 shrink-0 items-end gap-0.5 border-b border-border-subtle bg-surface px-2">
+    <div
+      ref={barRef}
+      data-tab-strip={compact ? 'compact' : 'full'}
+      className="flex h-9 shrink-0 items-end gap-0.5 border-b border-border-subtle bg-surface px-2"
+    >
       <div
         ref={stripRef}
         className="scrollbar-none flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto"
@@ -311,7 +340,7 @@ export function RepoTabs() {
               data-tab-cluster={group.id}
               data-tab-cluster-collapsed={collapsed || undefined}
               className={cn(
-                'relative mr-1.5 flex shrink-0 items-end gap-0.5 pr-1',
+                'relative mr-1.5 flex shrink items-end gap-0.5 pr-1',
                 draggingGroup === group.id && 'opacity-40',
                 groupDropHere === 'before' && 'shadow-[inset_2px_0_0_0_hsl(var(--primary))]',
                 groupDropHere === 'after' && 'shadow-[inset_-2px_0_0_0_hsl(var(--primary))]',

@@ -29,6 +29,12 @@ All notable changes to AngKorGit are documented here. The format follows
   Pull also handles upstreams outside a remote's fetch refspec. Cancellation preserves
   completed results if one repository's ref summary becomes unavailable. (#69)
 
+### Changed
+- The tab strip now shares a narrow window the way a browser does: tabs shrink to fit,
+  long names truncate, the close button stays only on the active tab, and the strip
+  only scrolls once every tab has reached its minimum width. Nothing changes in a wide
+  window.
+
 ## [0.23.0] — 2026-10-13
 
 The working-copy release. Folders in the file tree stage and unstage as one, the
