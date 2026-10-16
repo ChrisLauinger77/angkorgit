@@ -42,6 +42,13 @@ All notable changes to AngKorGit are documented here. The format follows
   marked, with issue numbers linking to GitHub. The bell carries a dot until you have
   read the notes for the version you are running.
 
+### Fixed
+- Creating a pull request from a fork into the upstream repository with a fine-grained
+  GitHub token now says why GitHub refused it: such a token can only act on repositories
+  of the account it was created for, so it needs a classic token with the repo scope.
+  The same 403 on your own repository points at the missing pull request permission.
+  (#77)
+
 ## [0.23.0] — 2026-10-13
 
 The working-copy release. Folders in the file tree stage and unstage as one, the

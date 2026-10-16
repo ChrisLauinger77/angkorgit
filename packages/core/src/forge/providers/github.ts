@@ -58,6 +58,17 @@ function githubErrorDetail(entry: GithubErrorEntry | string): string {
   return parts;
 }
 
+const TOKEN_REFUSAL = /resource not accessible/i;
+
+export function explainGithubCreateRefusal(error: unknown, targetRepo: string | null): unknown {
+  if (!(error instanceof ForgeError) || error.status !== 403 || !TOKEN_REFUSAL.test(error.message)) return error;
+  const said = /\(\d+\): (.*)$/.exec(error.message)?.[1];
+  const hint = targetRepo
+    ? `GitHub refused to open the pull request in ${targetRepo}. A fine-grained token can only act on repositories of the account it was created for, so it cannot open pull requests into a repository you do not own. Connect a classic token with the repo scope (public_repo is enough for public repositories) and try again.`
+    : 'GitHub refused to open the pull request: the token cannot write pull requests on this repository. A fine-grained token needs the "Pull requests: read and write" permission, a classic token the repo scope.';
+  return new ForgeError(said ? `${hint} GitHub said: ${said}.` : hint, error.forge, error.status);
+}
+
 function githubMessage(body: string): string | null {
   try {
     const parsed = JSON.parse(body) as {
@@ -137,13 +148,18 @@ export function githubForgeProvider(remote: ForgeRemote, http: HttpClient): Forg
     },
     async createPullRequest(input: CreatePullRequestInput): Promise<PullRequestInfo> {
       const head = input.sourceRepo ? `${input.sourceRepo.owner}:${input.sourceBranch}` : input.sourceBranch;
-      const data = (await request('POST', `/repos/${repoPath}/pulls`, {
-        title: input.title,
-        head,
-        base: input.targetBranch,
-        body: input.body,
-        draft: input.draft,
-      })) as GithubPull;
+      let data: GithubPull;
+      try {
+        data = (await request('POST', `/repos/${repoPath}/pulls`, {
+          title: input.title,
+          head,
+          base: input.targetBranch,
+          body: input.body,
+          draft: input.draft,
+        })) as GithubPull;
+      } catch (error) {
+        throw explainGithubCreateRefusal(error, input.sourceRepo ? repoPath : null);
+      }
       const pr = mapPull(data);
       if (input.reviewerIds?.length) {
         try {

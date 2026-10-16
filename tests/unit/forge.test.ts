@@ -839,3 +839,35 @@ describe('declared forge hosts (issue #32)', () => {
     core.registerForgeHosts([]);
   });
 });
+
+describe('github token refusals on create', () => {
+  const refusal = () => ({
+    status: 403,
+    body: JSON.stringify({ message: 'Resource not accessible by personal access token' }),
+  });
+  const input = { title: 't', body: '', sourceBranch: 'feature/x', targetBranch: 'main', draft: false };
+
+  it('explains that a fine-grained token cannot open a pull request into another owner\'s repository', async () => {
+    const { http } = fakeHttp(refusal);
+    await expect(
+      githubForgeProvider(githubRemote(), http).createPullRequest({ ...input, sourceRepo: { owner: 'chris', repo: 'angkorgit' } }),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringMatching(/fine-grained token can only act on repositories of the account it was created for.*classic token with the repo scope.*GitHub said: Resource not accessible by personal access token\./s),
+    });
+  });
+
+  it('points at the pull request permission when the same repository refuses', async () => {
+    const { http } = fakeHttp(refusal);
+    await expect(githubForgeProvider(githubRemote(), http).createPullRequest(input)).rejects.toMatchObject({
+      message: expect.stringContaining('"Pull requests: read and write"'),
+    });
+  });
+
+  it('leaves other 403s such as a rate limit verbatim', async () => {
+    const { http } = fakeHttp(() => ({ status: 403, body: JSON.stringify({ message: 'API rate limit exceeded' }) }));
+    await expect(githubForgeProvider(githubRemote(), http).createPullRequest(input)).rejects.toMatchObject({
+      message: 'GitHub request failed (403): API rate limit exceeded',
+    });
+  });
+});
