@@ -52,6 +52,7 @@ import { GroupDot, RepoGroupSubmenu } from '@/features/repository/RepoGroupMenu'
 import { useSettings } from '@/features/settings/store';
 import { useUi } from '@/features/ui/store';
 import { isMac, modKey } from '@/shared/utils';
+import { useTitleBarInset } from '@/shared/useTitleBarInset';
 
 const DRAG_TYPE = 'text/angkorgit-repo-tab';
 const GROUP_DRAG_TYPE = 'text/angkorgit-repo-group';
@@ -80,6 +81,7 @@ export function RepoTabs() {
   const [groupDrop, setGroupDrop] = useState<{ id: string; position: RepoGroupDropPosition } | null>(null);
   const [overflowing, setOverflowing] = useState(false);
   const [compact, setCompact] = useState(false);
+  const titleBarInset = useTitleBarInset();
   const stripRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
@@ -316,10 +318,13 @@ export function RepoTabs() {
     <div
       ref={barRef}
       data-tab-strip={compact ? 'compact' : 'full'}
+      data-tauri-drag-region
       className="flex h-9 shrink-0 items-end gap-0.5 border-b border-border-subtle bg-surface px-2"
+      style={titleBarInset.inset ? { paddingLeft: titleBarInset.inset, height: titleBarInset.height } : undefined}
     >
       <div
         ref={stripRef}
+        data-tauri-drag-region
         className="scrollbar-none flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto"
         onWheel={(e) => {
           if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {

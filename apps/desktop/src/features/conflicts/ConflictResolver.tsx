@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { basename, dirname, modKey } from '@/shared/utils';
+import { useTitleBarInset } from '@/shared/useTitleBarInset';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -183,6 +184,7 @@ function finishHint(state: RepoState | undefined): string {
 }
 
 export function ConflictResolver({ file, onResolved }: { file: string; onResolved: () => Promise<void> }) {
+  const titleBarInset = useTitleBarInset();
   const repo = useRepo((s) => s.repo);
   const conflicts = useRepo((s) => s.conflicts);
   const openConflict = useUi((s) => s.openConflict);
@@ -1135,7 +1137,11 @@ export function ConflictResolver({ file, onResolved }: { file: string; onResolve
       aria-label={`Resolve conflicts in ${file}`}
       onKeyDown={onKeyDown}
     >
-      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border-subtle bg-surface px-4">
+      <header
+        data-tauri-drag-region
+        className="flex h-14 shrink-0 items-center gap-4 border-b border-border-subtle bg-surface px-4"
+        style={{ paddingLeft: titleBarInset.inset || undefined }}
+      >
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-danger/15 text-danger">
           <GitMerge className="size-4" />
         </span>

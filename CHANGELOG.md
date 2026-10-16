@@ -34,6 +34,9 @@ All notable changes to AngKorGit are documented here. The format follows
   long names truncate, the close button stays only on the active tab, and the strip
   only scrolls once every tab has reached its minimum width. Nothing changes in a wide
   window.
+- On macOS the tabs sit in the title bar next to the traffic lights, like a browser,
+  instead of under an empty title row. Drag the window by the tab strip, double-click
+  it to zoom. Windows and Linux keep their native title bar.
 
 ## [0.23.0] — 2026-10-13
 

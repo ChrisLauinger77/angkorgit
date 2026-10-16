@@ -98,6 +98,17 @@ async function invoke<T>(command: string, args?: Record<string, unknown>): Promi
   return invoke<T>(command, args);
 }
 
+export const overlayTitleBar =
+  isTauri() && typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC');
+
+export async function fullscreenState(): Promise<boolean> {
+  if (!isTauri()) return false;
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  return getCurrentWindow()
+    .isFullscreen()
+    .catch(() => false);
+}
+
 export async function listen(event: string, handler: (payload: unknown) => void): Promise<() => void> {
   if (!isTauri()) return () => {};
   const { listen } = await import('@tauri-apps/api/event');

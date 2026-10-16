@@ -64,6 +64,7 @@ import { RepoGroupDialog } from './RepoGroupDialog';
 import { GroupDot, GroupTile, RepoGroupSubmenu } from './RepoGroupMenu';
 import { GroupUpdateDialog, type GroupUpdateProgress } from './GroupUpdateDialog';
 import { updateGroupRepositories } from './groupUpdate';
+import { useTitleBarInset } from '@/shared/useTitleBarInset';
 import { closeRepoGroup, deleteRepoGroup, openRepoGroup } from './groups';
 import { ScanRepositoriesDialog, startRepositoryScan } from './ScanRepositoriesDialog';
 import { SettingsDialog } from '@/features/settings/SettingsDialog';
@@ -91,6 +92,7 @@ export function WelcomePage() {
   const busy = useRepo((s) => s.busy);
   const groupRun = useRef<{ id: string; controller: AbortController; cancelling: boolean; ready: Promise<void>; completed: Map<string, GroupUpdateResult> } | null>(null);
   const [groupProgress, setGroupProgress] = useState<GroupUpdateProgress | null>(null);
+  const titleBarInset = useTitleBarInset();
   const [query, setQuery] = useState('');
   const [activePath, setActivePath] = useState<string | null>(null);
   const [missing, setMissing] = useState<Set<string>>(new Set());
@@ -498,6 +500,9 @@ export function WelcomePage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
+      {titleBarInset.inset > 0 && (
+        <div data-tauri-drag-region className="absolute inset-x-0 top-0" style={{ height: titleBarInset.height }} />
+      )}
       <TemplePattern className="[mask-image:radial-gradient(ellipse_at_center,transparent_30%,black_75%)]" />
       <div className="relative w-full max-w-3xl">
         <div className="mb-10 flex items-center gap-4">
