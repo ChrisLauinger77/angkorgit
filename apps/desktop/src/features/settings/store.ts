@@ -164,6 +164,7 @@ interface SettingsState {
   cherryPickRecordOrigin: boolean;
   worktreeRoot: string | null;
   cloneRoot: string | null;
+  lastSeenVersion: string | null;
   editorId: string | null;
   repoShortcuts: Record<string, string>;
   repoGroups: RepoGroup[];
@@ -194,6 +195,7 @@ interface SettingsState {
   setCherryPickRecordOrigin: (value: boolean) => void;
   setWorktreeRoot: (value: string | null) => void;
   setCloneRoot: (value: string | null) => void;
+  markVersionSeen: (version: string) => void;
   setEditorId: (value: string | null) => void;
   setRepoShortcut: (path: string, chord: string | null) => void;
   addRepoGroup: (name: string, color: number, paths?: string[]) => string;
@@ -261,6 +263,7 @@ export const useSettings = create<SettingsState>()(
       cherryPickRecordOrigin: true,
       worktreeRoot: null,
       cloneRoot: null,
+      lastSeenVersion: null,
       editorId: null,
       repoShortcuts: {},
       repoGroups: [],
@@ -302,6 +305,7 @@ export const useSettings = create<SettingsState>()(
       setCherryPickRecordOrigin: (cherryPickRecordOrigin) => set({ cherryPickRecordOrigin }),
       setWorktreeRoot: (worktreeRoot) => set({ worktreeRoot }),
       setCloneRoot: (cloneRoot) => set({ cloneRoot }),
+      markVersionSeen: (lastSeenVersion) => set({ lastSeenVersion }),
       setEditorId: (editorId) => set({ editorId }),
       setRepoShortcut: (path, chord) =>
         set((s) => {

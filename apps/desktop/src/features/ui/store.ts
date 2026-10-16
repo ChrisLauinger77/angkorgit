@@ -36,6 +36,7 @@ export type DialogKind =
   | 'repoShortcut'
   | 'repoGroup'
   | 'scanRepositories'
+  | 'whatsNew'
   | null;
 
 export interface CenterDiffTarget {

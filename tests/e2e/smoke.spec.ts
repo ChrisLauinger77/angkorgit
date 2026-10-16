@@ -3243,3 +3243,28 @@ test('tabs shrink to share a narrow window like browser tabs and scroll only pas
   await expect(page.getByRole('button', { name: 'Close tycho' })).toBeVisible();
   expect(Math.abs((await longTab.boundingBox())!.width - wide.width)).toBeLessThan(2);
 });
+
+test("what's new opens from the welcome footer and the status bar and its unread dot clears once seen", async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Recent repositories')).toBeVisible({ timeout: 10_000 });
+  const footerLink = page.getByRole('button', { name: "What's new" });
+  await expect(footerLink).toHaveAttribute('data-whats-new-unseen', 'true');
+  await footerLink.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: "What's new" })).toBeVisible();
+  await expect(dialog.locator('[data-whats-new-release]').first()).toHaveAttribute('data-whats-new-release', /^\d+\.\d+\.\d+$/);
+  await expect(dialog.locator('[data-whats-new-release="0.23.0"]')).toContainText('Filter settings by title or keyword.');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(footerLink).toHaveAttribute('data-whats-new-unseen', 'false');
+  await page.reload();
+  await expect(page.getByRole('button', { name: "What's new" })).toHaveAttribute('data-whats-new-unseen', 'false');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  const bell = page.locator('[data-whats-new]');
+  await expect(bell).toHaveAttribute('data-whats-new-unseen', 'false');
+  await bell.click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: "What's new" })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).last().click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+});

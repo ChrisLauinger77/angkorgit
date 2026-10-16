@@ -37,6 +37,10 @@ All notable changes to AngKorGit are documented here. The format follows
 - On macOS the tabs sit in the title bar next to the traffic lights, like a browser,
   instead of under an empty title row. Drag the window by the tab strip, double-click
   it to zoom. Windows and Linux keep their native title bar.
+- **What's new inside the app.** A bell in the status bar and a "What's new" link in
+  the welcome footer open the release notes for every version, the one you are on
+  marked, with issue numbers linking to GitHub. The bell carries a dot until you have
+  read the notes for the version you are running.
 
 ## [0.23.0] — 2026-10-13
 

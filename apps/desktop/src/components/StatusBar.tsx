@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, Check, GitBranch, GitPullRequest, Pencil, RefreshCw, Sparkles, ZoomIn } from 'lucide-react';
+import { ArrowDown, ArrowUp, Bell, Check, GitBranch, GitPullRequest, Pencil, RefreshCw, Sparkles, ZoomIn } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import { useForge } from '@/features/forge/store';
 import { useRepo } from '@/features/repository/store';
 import { useSettings } from '@/features/settings/store';
 import { useUi } from '@/features/ui/store';
+import { useWhatsNew } from '@/features/changelog/useWhatsNew';
 import { capCount, currentPullRequestUrl, timeAgo } from '@/shared/utils';
 import { AI_PROVIDER_PRESETS, CLI_AGENTS, forgeNoun, parseForgeRemote, parseRemote, pickForgeRemote } from '@angkorgit/core';
 
@@ -32,6 +33,7 @@ export function StatusBar() {
     return () => window.clearInterval(id);
   }, []);
   const zoom = useSettings((s) => s.zoom);
+  const whatsNew = useWhatsNew();
   const setZoom = useSettings((s) => s.setZoom);
   const ai = useSettings((s) => s.ai);
   const aiStatus = useSettings((s) => s.aiStatus);
@@ -211,6 +213,19 @@ export function StatusBar() {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Hint label={whatsNew.unseen ? `See what's new in v` : "What's new"}>
+        <button
+          type="button"
+          className="relative flex items-center rounded px-1 py-0.5 hover:bg-surface-raised hover:text-foreground"
+          aria-label="What's new"
+          data-whats-new
+          data-whats-new-unseen={whatsNew.unseen}
+          onClick={whatsNew.open}
+        >
+          <Bell className={cn('size-3', whatsNew.unseen && 'text-primary')} />
+          {whatsNew.unseen && <span aria-hidden className="absolute right-0.5 top-0 size-1.5 rounded-full bg-primary" />}
+        </button>
+      </Hint>
       <Hint label="Check for updates">
         <button
           type="button"

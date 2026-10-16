@@ -8,6 +8,7 @@ import { ConfirmHost } from '@/components/confirm';
 import { ProfilePromptHost } from '@/components/profilePrompt';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { WelcomePage } from '@/features/repository/WelcomePage';
+import { WhatsNewDialog } from '@/features/changelog/WhatsNewDialog';
 
 const RepositoryPage = lazy(() =>
   import('@/features/repository/RepositoryPage').then((m) => ({ default: m.RepositoryPage })),
@@ -143,6 +144,7 @@ function Shell() {
         </Suspense>
       )}
       {!splash && <RepoQuickOpen />}
+      {!splash && <WhatsNewDialog />}
       <AnimatePresence>{splash && <SplashScreen key="splash" />}</AnimatePresence>
     </>
   );

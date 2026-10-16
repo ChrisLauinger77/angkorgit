@@ -65,6 +65,7 @@ import { GroupDot, GroupTile, RepoGroupSubmenu } from './RepoGroupMenu';
 import { GroupUpdateDialog, type GroupUpdateProgress } from './GroupUpdateDialog';
 import { updateGroupRepositories } from './groupUpdate';
 import { useTitleBarInset } from '@/shared/useTitleBarInset';
+import { useWhatsNew } from '@/features/changelog/useWhatsNew';
 import { closeRepoGroup, deleteRepoGroup, openRepoGroup } from './groups';
 import { ScanRepositoriesDialog, startRepositoryScan } from './ScanRepositoriesDialog';
 import { SettingsDialog } from '@/features/settings/SettingsDialog';
@@ -93,6 +94,7 @@ export function WelcomePage() {
   const groupRun = useRef<{ id: string; controller: AbortController; cancelling: boolean; ready: Promise<void>; completed: Map<string, GroupUpdateResult> } | null>(null);
   const [groupProgress, setGroupProgress] = useState<GroupUpdateProgress | null>(null);
   const titleBarInset = useTitleBarInset();
+  const whatsNew = useWhatsNew();
   const [query, setQuery] = useState('');
   const [activePath, setActivePath] = useState<string | null>(null);
   const [missing, setMissing] = useState<Set<string>>(new Set());
@@ -641,6 +643,16 @@ export function WelcomePage() {
             }
           >
             Check for updates
+          </button>
+          <span aria-hidden>·</span>
+          <button
+            type="button"
+            className="relative flex items-center gap-1.5 hover:text-foreground hover:underline"
+            data-whats-new-unseen={whatsNew.unseen}
+            onClick={whatsNew.open}
+          >
+            {whatsNew.unseen && <span aria-hidden className="size-1.5 rounded-full bg-primary" />}
+            What's new
           </button>
         </p>
       </div>

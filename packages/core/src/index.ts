@@ -2,6 +2,7 @@ export * from './git/types';
 export * from './git/worktree';
 export * from './git/commitMessage';
 export * from './git/fileFilter';
+export * from './changelog/parse';
 export * from './git/allFiles';
 export * from './git/blameable';
 export * from './git/repoGroups';
