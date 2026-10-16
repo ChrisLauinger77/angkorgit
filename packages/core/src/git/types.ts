@@ -244,3 +244,21 @@ export interface FileBlame {
   lines: string[];
   hunks: BlameHunk[];
 }
+
+export interface GroupUpdateResult {
+  status: 'ok' | 'up_to_date' | 'skipped' | 'failed' | 'partial' | 'cancelled';
+  message: string;
+  changes: RefMovement[];
+}
+
+export interface RefMovement {
+  name: string;
+  oldOid: string | null;
+  newOid: string | null;
+  commits: number | null;
+}
+
+export interface GroupUpdateReceipt {
+  path: string;
+  result: GroupUpdateResult;
+}

@@ -279,3 +279,26 @@ pub struct GeneratedKey {
     pub path: String,
     pub public_key: String,
 }
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupUpdateResult {
+    pub status: String,
+    pub message: String,
+    pub changes: Vec<RefMovement>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RefMovement {
+    pub name: String,
+    pub old_oid: Option<String>,
+    pub new_oid: Option<String>,
+    pub commits: Option<usize>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct GroupUpdateReceipt {
+    pub path: String,
+    pub result: GroupUpdateResult,
+}

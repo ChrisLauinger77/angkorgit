@@ -22,6 +22,11 @@ impl TempRepo {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.to_str().unwrap();
         core::init(path).unwrap();
+        git2::Repository::open(path)
+            .unwrap()
+            .set_head("refs/heads/master")
+            .unwrap();
+        core::set_config(Some(path), "commit.gpgsign", "false", false).unwrap();
         core::set_config(Some(path), "user.name", "Test User", false).unwrap();
         core::set_config(Some(path), "user.email", "test@angkorgit.dev", false).unwrap();
         core::set_config(Some(path), "core.autocrlf", "false", false).unwrap();
@@ -2508,6 +2513,7 @@ fn clone_of(origin: &std::path::Path, local: &TempRepo, suffix: &str) -> TempRep
         .unwrap();
     assert!(status.success());
     let clone = TempRepo { dir };
+    core::set_config(Some(clone.path()), "commit.gpgsign", "false", false).unwrap();
     core::set_config(Some(clone.path()), "user.name", "Other User", false).unwrap();
     core::set_config(
         Some(clone.path()),
@@ -3023,4 +3029,851 @@ fn scan_finds_every_repository_and_skips_noise() {
 
     assert!(core::scan_repositories(root.join("missing").to_str().unwrap(), 4).is_err());
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn group_pull_fast_forwards_configured_upstream_without_merging() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "group");
+    let repo = git2::Repository::open(other.path()).unwrap();
+    repo.find_branch("master", git2::BranchType::Local)
+        .unwrap()
+        .rename("topic", false)
+        .unwrap();
+    core::set_config(Some(other.path()), "pull.rebase", "true", false).unwrap();
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let result = core::group_update(other.path(), true).unwrap();
+    assert_eq!(result.status, "ok");
+    assert_eq!(result.changes[0].name, "topic");
+    assert_eq!(result.changes[0].old_oid.as_deref(), Some(old.as_str()));
+    assert_eq!(result.changes[0].new_oid.as_deref(), Some(new.as_str()));
+    assert_eq!(result.changes[0].commits, Some(1));
+    assert_eq!(other.read("a.txt"), "updated\n");
+    assert_eq!(head_summary_and_parents(&other).1, 1);
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "up_to_date"
+    );
+    other.write("mine.txt", "mine\n");
+    let mine = commit_all(&other, "mine");
+    local.write("a.txt", "remote again\n");
+    commit_all(&local, "remote again");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let result = core::group_update(other.path(), true).unwrap();
+    assert_eq!(result.status, "skipped");
+    assert!(result.message.contains("diverged"));
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), mine);
+    assert_eq!(repo.state(), git2::RepositoryState::Clean);
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_pull_skips_conflicting_changes_detached_missing_upstream_and_unfinished_repos() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "group-skip");
+    local.write("a.txt", "remote\n");
+    commit_all(&local, "remote");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    for staged in [false, true] {
+        other.write("a.txt", "dirty\n");
+        if staged {
+            core::stage_all(other.path()).unwrap();
+        }
+        let result = core::group_update(other.path(), true).unwrap();
+        assert_eq!(result.status, "skipped");
+        assert!(result.message.contains("Local changes prevent checkout"));
+        assert_eq!(other.read("a.txt"), "dirty\n");
+    }
+    let repo = git2::Repository::open(other.path()).unwrap();
+    repo.reset(
+        &repo
+            .find_object(git2::Oid::from_str(&old).unwrap(), None)
+            .unwrap(),
+        git2::ResetType::Hard,
+        None,
+    )
+    .unwrap();
+    local.write("incoming.txt", "remote file\n");
+    commit_all(&local, "add incoming file");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    other.write("incoming.txt", "untracked file\n");
+    let result = core::group_update(other.path(), true).unwrap();
+    assert_eq!(result.status, "skipped");
+    assert!(result.message.contains("Local changes prevent checkout"));
+    assert_eq!(other.read("incoming.txt"), "untracked file\n");
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), old);
+    std::fs::remove_file(other.dir.join("incoming.txt")).unwrap();
+    std::fs::write(repo.path().join("MERGE_HEAD"), &old).unwrap();
+    assert!(core::group_update(other.path(), true)
+        .unwrap()
+        .message
+        .contains("unfinished"));
+    std::fs::remove_file(repo.path().join("MERGE_HEAD")).unwrap();
+    repo.set_head_detached(git2::Oid::from_str(&old).unwrap())
+        .unwrap();
+    assert!(core::group_update(other.path(), true)
+        .unwrap()
+        .message
+        .contains("detached"));
+    repo.set_head("refs/heads/master").unwrap();
+    repo.find_branch("master", git2::BranchType::Local)
+        .unwrap()
+        .set_upstream(None)
+        .unwrap();
+    assert!(core::group_update(other.path(), true)
+        .unwrap()
+        .message
+        .contains("no upstream"));
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), old);
+    assert_eq!(
+        core::group_update(other.dir.join("missing").to_str().unwrap(), true)
+            .unwrap()
+            .status,
+        "skipped"
+    );
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_fetch_reports_moved_refs_and_continues_after_remote_failure() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "group-fetch");
+    core::remote_add(
+        other.path(),
+        "broken",
+        other.dir.join("missing.git").to_str().unwrap(),
+    )
+    .unwrap();
+    local.write("a.txt", "new\n");
+    let new = commit_all(&local, "new");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let result = core::group_update(other.path(), false).unwrap();
+    assert_eq!(result.status, "partial");
+    assert!(result.message.contains("broken"));
+    let moved = result
+        .changes
+        .iter()
+        .find(|r| r.name == "refs/remotes/origin/master")
+        .unwrap();
+    assert_eq!(moved.old_oid.as_deref(), Some(old.as_str()));
+    assert_eq!(moved.new_oid.as_deref(), Some(new.as_str()));
+    assert_eq!(other.read("a.txt"), "base\n");
+    assert_eq!(
+        git2::Repository::open(other.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap()
+            .to_string(),
+        old
+    );
+    let unchanged_partial = core::group_update(other.path(), false).unwrap();
+    assert_eq!(unchanged_partial.status, "partial");
+    assert!(unchanged_partial.changes.is_empty());
+    let empty = TempRepo::new();
+    assert_eq!(
+        core::group_update(empty.path(), false).unwrap().status,
+        "skipped"
+    );
+    assert!(core::group_update(empty.path(), true)
+        .unwrap()
+        .message
+        .contains("no commits"));
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_pull_restores_missing_tracking_refs_and_reports_deleted_upstreams() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "missing-upstream");
+    let repo = git2::Repository::open(other.path()).unwrap();
+    repo.find_reference("refs/remotes/origin/master")
+        .unwrap()
+        .delete()
+        .unwrap();
+    assert!(repo
+        .find_branch("master", git2::BranchType::Local)
+        .unwrap()
+        .upstream()
+        .is_err());
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "up_to_date"
+    );
+    git2::Repository::open_bare(&origin)
+        .unwrap()
+        .find_reference("refs/heads/master")
+        .unwrap()
+        .delete()
+        .unwrap();
+    let result = core::group_update(other.path(), true).unwrap();
+    assert_eq!(result.status, "skipped");
+    assert!(
+        result
+            .message
+            .contains("Configured upstream refs/remotes/origin/master is missing"),
+        "{}",
+        result.message
+    );
+    assert!(!result.message.contains("no upstream"));
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), old);
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_pull_matches_toolbar_pull_with_submodule_metadata_and_lfs_attributes() {
+    for (file, content) in [
+        (
+            ".gitmodules",
+            "[submodule \"sub\"]\npath = sub\nurl = ../sub.git\n",
+        ),
+        (".gitattributes", "*.txt filter=lfs diff=lfs -text\n"),
+    ] {
+        let local = TempRepo::new();
+        local.write("a.txt", "base\n");
+        commit_all(&local, "base");
+        let origin = bare_origin(&local);
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        let other = clone_of(&origin, &local, "group-compatible");
+        let toolbar = clone_of(&origin, &local, "toolbar-compatible");
+        local.write(file, content);
+        local.write(
+            "a.txt",
+            "version https://git-lfs.github.com/spec/v1\noid sha256:123\nsize 1\n",
+        );
+        let new = commit_all(&local, "special checkout");
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        assert_eq!(core::group_update(other.path(), true).unwrap().status, "ok");
+        core::pull(toolbar.path(), "origin", Some("merge")).unwrap();
+        assert_eq!(other.read("a.txt"), toolbar.read("a.txt"));
+        assert_eq!(other.read(file), toolbar.read(file));
+        assert_eq!(
+            git2::Repository::open(other.path())
+                .unwrap()
+                .head()
+                .unwrap()
+                .target()
+                .unwrap()
+                .to_string(),
+            new
+        );
+        std::fs::remove_dir_all(origin).unwrap();
+    }
+}
+
+#[test]
+fn group_pull_matches_toolbar_pull_with_active_hooks() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "group-hooks");
+    let toolbar = clone_of(&origin, &local, "toolbar-hooks");
+    let repo = git2::Repository::open(other.path()).unwrap();
+    let hooks = repo.path().join("custom-hooks");
+    std::fs::create_dir_all(&hooks).unwrap();
+    for path in [other.path(), toolbar.path()] {
+        core::set_config(Some(path), "core.hooksPath", hooks.to_str().unwrap(), false).unwrap();
+    }
+    for name in ["post-checkout", "post-merge"] {
+        let hook = hooks.join(name);
+        std::fs::write(&hook, "#!/bin/sh\nprintf invoked > hook-ran\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    assert_eq!(core::group_update(other.path(), true).unwrap().status, "ok");
+    core::pull(toolbar.path(), "origin", Some("merge")).unwrap();
+    assert_eq!(other.read("a.txt"), toolbar.read("a.txt"));
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), new);
+    assert!(!other.dir.join("hook-ran").exists());
+    assert!(!toolbar.dir.join("hook-ran").exists());
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_cancel_prevents_all_future_updates() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let control = core::GroupUpdateControl::default();
+    control.ensure_active().unwrap();
+    control.cancel().unwrap();
+    assert!(control.ensure_active().is_err());
+    assert!(control
+        .with_active::<()>(|| panic!("cancelled action must not run"))
+        .is_err());
+    let result = core::group_update_controlled(local.path(), true, &control).unwrap();
+    assert_eq!(result.status, "cancelled");
+    assert_eq!(
+        git2::Repository::open(local.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap()
+            .to_string(),
+        old
+    );
+}
+
+#[test]
+fn group_cancel_acknowledges_a_stalled_remote_without_waiting_for_the_socket() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    core::remote_add(
+        local.path(),
+        "origin",
+        &format!("http://{}/repo.git", listener.local_addr().unwrap()),
+    )
+    .unwrap();
+    let (accepted_tx, accepted_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (socket, _) = listener.accept().unwrap();
+        drop(listener);
+        accepted_tx.send(()).unwrap();
+        release_rx
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap();
+        drop(socket);
+    });
+    let control = std::sync::Arc::new(core::GroupUpdateControl::default());
+    let worker_control = control.clone();
+    let path = local.path().to_string();
+    let worker =
+        std::thread::spawn(move || core::group_update_controlled(&path, false, &worker_control));
+    accepted_rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
+    let start = std::time::Instant::now();
+    control.cancel().unwrap();
+    assert!(start.elapsed() < std::time::Duration::from_secs(1));
+    assert!(!worker.is_finished());
+    release_tx.send(()).unwrap();
+    server.join().unwrap();
+    assert_eq!(worker.join().unwrap().unwrap().status, "cancelled");
+    let repo = git2::Repository::open(local.path()).unwrap();
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), old);
+    assert!(repo.find_reference("refs/remotes/origin/master").is_err());
+}
+
+#[test]
+fn group_run_registry_keeps_cancellation_on_in_flight_handles_after_finish() {
+    let local = TempRepo::new();
+    let id = local.path();
+    core::group_update_start(id).unwrap();
+    assert!(core::group_update_start(id).is_err());
+    let control = core::group_update_control(id).unwrap();
+    assert!(!control.is_cancelled());
+    core::group_update_cancel(id).unwrap();
+    assert!(control.is_cancelled());
+    core::group_update_finish(id).unwrap();
+    assert!(core::group_update_control(id).is_err());
+    assert!(control
+        .with_active::<()>(|| panic!("finished handles cannot mutate"))
+        .is_err());
+    core::group_update_finish(id).unwrap();
+}
+
+#[test]
+fn group_pull_preserves_unrelated_untracked_unstaged_and_staged_changes() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    local.write("notes.txt", "notes\n");
+    commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    for mode in ["untracked", "unstaged", "staged"] {
+        let other = clone_of(&origin, &local, mode);
+        other.write("scratch.txt", "untracked notes\n");
+        if mode != "untracked" {
+            other.write("notes.txt", "local notes\n");
+        }
+        if mode == "staged" {
+            core::stage_file(other.path(), "notes.txt").unwrap();
+        }
+        local.write("a.txt", mode);
+        let new = commit_all(&local, mode);
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        assert_eq!(core::group_update(other.path(), true).unwrap().status, "ok");
+        assert_eq!(other.read("scratch.txt"), "untracked notes\n");
+        assert_eq!(
+            other.read("notes.txt"),
+            if mode == "untracked" {
+                "notes\n"
+            } else {
+                "local notes\n"
+            }
+        );
+        assert_eq!(other.read("a.txt"), mode);
+        let repo = git2::Repository::open(other.path()).unwrap();
+        assert_eq!(repo.head().unwrap().target().unwrap().to_string(), new);
+        let status = repo.status_file(std::path::Path::new("notes.txt")).unwrap();
+        assert_eq!(
+            status.contains(git2::Status::INDEX_MODIFIED),
+            mode == "staged"
+        );
+        assert_eq!(
+            status.contains(git2::Status::WT_MODIFIED),
+            mode == "unstaged"
+        );
+    }
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_pull_explains_when_checkout_succeeds_but_branch_update_fails() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "locked-ref");
+    let repo = git2::Repository::open(other.path()).unwrap();
+    std::fs::write(repo.path().join("refs/heads/master.lock"), "locked").unwrap();
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let error = core::group_update(other.path(), true)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("Checkout completed, but branch update failed"),
+        "{error}"
+    );
+    assert!(error.contains(&old));
+    assert!(error.contains(&new));
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), old);
+    assert_eq!(other.read("a.txt"), "updated\n");
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_fetch_remote_prune_setting_overrides_global_setting() {
+    for (global, remote, pruned) in [
+        (true, Some(false), false),
+        (false, Some(true), true),
+        (true, None, true),
+        (false, None, false),
+    ] {
+        let local = TempRepo::new();
+        local.write("a.txt", "base\n");
+        commit_all(&local, "base");
+        let origin = bare_origin(&local);
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        let repo = git2::Repository::open(local.path()).unwrap();
+        repo.branch(
+            "obsolete",
+            &repo.head().unwrap().peel_to_commit().unwrap(),
+            false,
+        )
+        .unwrap();
+        core::push(local.path(), "origin", Some("obsolete"), false, false, true).unwrap();
+        let other = clone_of(&origin, &local, "prune");
+        core::set_config(
+            Some(other.path()),
+            "fetch.prune",
+            &global.to_string(),
+            false,
+        )
+        .unwrap();
+        if let Some(remote) = remote {
+            core::set_config(
+                Some(other.path()),
+                "remote.origin.prune",
+                &remote.to_string(),
+                false,
+            )
+            .unwrap();
+        }
+        git2::Repository::open_bare(&origin)
+            .unwrap()
+            .find_reference("refs/heads/obsolete")
+            .unwrap()
+            .delete()
+            .unwrap();
+        let outcome = core::group_update(other.path(), false).unwrap();
+        assert_eq!(outcome.status, "ok");
+        let other_repo = git2::Repository::open(other.path()).unwrap();
+        assert_eq!(
+            other_repo
+                .find_reference("refs/remotes/origin/obsolete")
+                .is_err(),
+            pruned
+        );
+        assert_eq!(
+            outcome
+                .changes
+                .iter()
+                .any(|change| change.name == "refs/remotes/origin/obsolete"
+                    && change.new_oid.is_none()),
+            pruned
+        );
+        std::fs::remove_dir_all(origin).unwrap();
+    }
+}
+
+#[test]
+fn group_cancel_reports_a_completed_checkout_before_acknowledging() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "cancel-checkout");
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let control = core::GroupUpdateControl::default();
+    let outcome = core::group_update_controlled(other.path(), true, &control).unwrap();
+    assert_eq!(outcome.status, "ok");
+    let receipts = control.cancel_results().unwrap();
+    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts[0].path, other.path());
+    assert_eq!(receipts[0].result.status, "ok");
+    assert_eq!(
+        receipts[0].result.changes[0].old_oid.as_deref(),
+        Some(old.as_str())
+    );
+    assert_eq!(
+        receipts[0].result.changes[0].new_oid.as_deref(),
+        Some(new.as_str())
+    );
+    assert_eq!(other.read("a.txt"), "updated\n");
+    assert!(control.is_cancelled());
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_pull_accepts_url_upstreams_without_leaving_temporary_refs() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "url-upstream");
+    core::branch_create(other.path(), "work/topic", None, true).unwrap();
+    core::set_config(
+        Some(other.path()),
+        "branch.work/topic.merge",
+        "refs/heads/master",
+        false,
+    )
+    .unwrap();
+    let url = reqwest::Url::from_file_path(&origin).unwrap().to_string();
+    core::set_config(Some(other.path()), "branch.work/topic.remote", &url, false).unwrap();
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let outcome = core::group_update(other.path(), true).unwrap();
+    assert_eq!(outcome.status, "ok", "{}", outcome.message);
+    assert_eq!(other.read("a.txt"), "updated\n");
+    let repo = git2::Repository::open(other.path()).unwrap();
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), new);
+    assert_eq!(
+        repo.config()
+            .unwrap()
+            .get_string("branch.work/topic.remote")
+            .unwrap(),
+        url
+    );
+    assert!(repo
+        .references_glob("refs/angkorgit/group-pull/*")
+        .unwrap()
+        .next()
+        .is_none());
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "up_to_date"
+    );
+    core::set_config(
+        Some(other.path()),
+        "branch.work/topic.remote",
+        origin.to_str().unwrap(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "up_to_date"
+    );
+    git2::Repository::open_bare(&origin)
+        .unwrap()
+        .find_reference("refs/heads/master")
+        .unwrap()
+        .delete()
+        .unwrap();
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "skipped"
+    );
+    assert!(repo
+        .references_glob("refs/angkorgit/group-pull/*")
+        .unwrap()
+        .next()
+        .is_none());
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_fetch_cancel_receipts_keep_successful_remotes_and_prior_errors() {
+    for successful in [true, false] {
+        let local = TempRepo::new();
+        local.write("a.txt", "base\n");
+        commit_all(&local, "base");
+        let origin = bare_origin(&local);
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        let other = clone_of(&origin, &local, "cancel-partial");
+        git2::Repository::open(other.path())
+            .unwrap()
+            .remote_delete("origin")
+            .unwrap();
+        if successful {
+            core::remote_add(other.path(), "a-good", origin.to_str().unwrap()).unwrap();
+        }
+        core::remote_add(
+            other.path(),
+            "b-error",
+            if successful {
+                origin.to_str().unwrap()
+            } else {
+                "/nonexistent/angkorgit-remote.git"
+            },
+        )
+        .unwrap();
+        if successful {
+            core::set_config(Some(other.path()), "remote.b-error.prune", "invalid", false).unwrap();
+        }
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        core::remote_add(
+            other.path(),
+            "c-stalled",
+            &format!("http://{}/repo.git", listener.local_addr().unwrap()),
+        )
+        .unwrap();
+        let (accepted_tx, accepted_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            drop(listener);
+            accepted_tx.send(()).unwrap();
+            release_rx
+                .recv_timeout(std::time::Duration::from_secs(30))
+                .unwrap();
+            drop(socket);
+        });
+        let control = std::sync::Arc::new(core::GroupUpdateControl::default());
+        let worker_control = control.clone();
+        let path = other.path().to_string();
+        let worker = std::thread::spawn(move || {
+            core::group_update_controlled(&path, false, &worker_control)
+        });
+        accepted_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let start = std::time::Instant::now();
+        let receipts = control.cancel_results().unwrap();
+        assert!(start.elapsed() < std::time::Duration::from_secs(5));
+        assert!(!worker.is_finished());
+        assert_eq!(receipts.len(), 1);
+        let result = &receipts[0].result;
+        assert_eq!(result.status, if successful { "partial" } else { "failed" });
+        assert!(result.message.contains("b-error"), "{}", result.message);
+        assert!(result.message.contains("before cancellation"));
+        assert_eq!(
+            result
+                .changes
+                .iter()
+                .any(|change| change.name == "refs/remotes/a-good/master"),
+            successful
+        );
+        release_tx.send(()).unwrap();
+        server.join().unwrap();
+        let outcome = worker.join().unwrap().unwrap();
+        assert_eq!(outcome.status, result.status);
+        assert_eq!(outcome.message, result.message);
+        std::fs::remove_dir_all(origin).unwrap();
+    }
+}
+
+#[test]
+fn group_pull_fetches_an_upstream_outside_the_remote_fetch_refspec() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    let old = commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "unmapped-upstream");
+    let fetch = "+refs/heads/elsewhere:refs/remotes/origin/elsewhere";
+    core::set_config(Some(other.path()), "remote.origin.fetch", fetch, false).unwrap();
+    let repo = git2::Repository::open(other.path()).unwrap();
+    assert_eq!(
+        repo.branch_upstream_name("refs/heads/master")
+            .err()
+            .unwrap()
+            .code(),
+        git2::ErrorCode::NotFound
+    );
+    local.write("a.txt", "updated\n");
+    let new = commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let outcome = core::group_update(other.path(), true).unwrap();
+    assert_eq!(outcome.status, "ok", "{}", outcome.message);
+    assert_eq!(repo.head().unwrap().target().unwrap().to_string(), new);
+    assert_eq!(other.read("a.txt"), "updated\n");
+    assert_eq!(
+        repo.config()
+            .unwrap()
+            .get_string("remote.origin.fetch")
+            .unwrap(),
+        fetch
+    );
+    assert_eq!(
+        repo.find_reference("refs/remotes/origin/master")
+            .unwrap()
+            .target()
+            .unwrap()
+            .to_string(),
+        old
+    );
+    assert!(repo
+        .references_glob("refs/angkorgit/group-pull/*")
+        .unwrap()
+        .next()
+        .is_none());
+    assert_eq!(
+        core::group_update(other.path(), true).unwrap().status,
+        "up_to_date"
+    );
+    git2::Repository::open_bare(&origin)
+        .unwrap()
+        .find_reference("refs/heads/master")
+        .unwrap()
+        .delete()
+        .unwrap();
+    let deleted = core::group_update(other.path(), true).unwrap();
+    assert_eq!(deleted.status, "skipped");
+    assert!(deleted.message.contains("missing on remote origin"));
+    assert!(repo
+        .references_glob("refs/angkorgit/group-pull/*")
+        .unwrap()
+        .next()
+        .is_none());
+    std::fs::remove_dir_all(origin).unwrap();
+}
+
+#[test]
+fn group_cancel_preserves_other_receipts_when_a_fetch_repository_path_becomes_invalid() {
+    let local = TempRepo::new();
+    local.write("a.txt", "base\n");
+    commit_all(&local, "base");
+    let origin = bare_origin(&local);
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let other = clone_of(&origin, &local, "moved-fetch");
+    local.write("a.txt", "updated\n");
+    commit_all(&local, "updated");
+    core::push(local.path(), "origin", None, false, false, true).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    core::remote_add(
+        other.path(),
+        "z-stalled",
+        &format!("http://{}/repo.git", listener.local_addr().unwrap()),
+    )
+    .unwrap();
+    let (accepted_tx, accepted_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (socket, _) = listener.accept().unwrap();
+        drop(listener);
+        accepted_tx.send(()).unwrap();
+        let _ = release_rx.recv_timeout(std::time::Duration::from_secs(30));
+        drop(socket);
+    });
+    let control = std::sync::Arc::new(core::GroupUpdateControl::default());
+    let finished = TempRepo::new();
+    assert_eq!(
+        core::group_update_controlled(finished.path(), false, &control)
+            .unwrap()
+            .status,
+        "skipped"
+    );
+    let alias = TempRepo::new();
+    std::fs::remove_dir_all(alias.dir.join(".git")).unwrap();
+    let gitdir = format!(
+        "gitdir: {}\n",
+        other
+            .dir
+            .join(".git")
+            .display()
+            .to_string()
+            .replace('\\', "/")
+    );
+    alias.write(".git", &gitdir);
+    let worker_control = control.clone();
+    let path = alias.path().to_string();
+    let worker_path = path.clone();
+    let worker = std::thread::spawn(move || {
+        core::group_update_controlled(&worker_path, false, &worker_control)
+    });
+    accepted_rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    alias.write(".git", "gitdir: missing-repository\n");
+    assert!(git2::Repository::open(alias.path()).is_err());
+    let receipts = control.cancel_results().unwrap();
+    assert!(control.is_cancelled());
+    assert!(!worker.is_finished());
+    assert_eq!(receipts.len(), 2);
+    let unaffected = receipts
+        .iter()
+        .find(|receipt| receipt.path == finished.path())
+        .unwrap();
+    assert_eq!(unaffected.result.status, "skipped");
+    let affected = receipts
+        .iter()
+        .find(|receipt| receipt.path == path)
+        .unwrap();
+    assert_eq!(affected.result.status, "partial");
+    assert!(affected
+        .result
+        .message
+        .contains("Fetched 1 of 2 remotes before cancellation"));
+    assert!(affected
+        .result
+        .message
+        .contains("Could not inspect moved refs"));
+    alias.write(".git", &gitdir);
+    release_tx.send(()).unwrap();
+    server.join().unwrap();
+    assert_eq!(worker.join().unwrap().unwrap().status, "partial");
+    assert_eq!(other.read("a.txt"), "base\n");
+    std::fs::remove_dir_all(origin).unwrap();
 }
