@@ -22,6 +22,7 @@ import type {
   RemoteInfo,
   RepositoryInfo,
   StashInfo,
+  PullPreview,
   StatusSummary,
   SubmoduleInfo,
   TagInfo,
@@ -147,8 +148,20 @@ function clearDemoSubmoduleDrift(): void {
   }
 }
 
+const DEMO_PULL_PREVIEW = 'angkorgit-demo-pull-preview';
+
+function demoPullScenario(): 'conflicts' | 'local' | null {
+  try {
+    const value = localStorage.getItem(DEMO_PULL_PREVIEW);
+    return value === 'conflicts' || value === 'local' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function demoStatusNow(): StatusSummary {
-  const status = demoNothingStaged() ? demo.demoUnstagedStatus() : demo.demoStatus;
+  const base = demoNothingStaged() ? demo.demoUnstagedStatus() : demo.demoStatus;
+  const status = demoPullScenario() ? { ...base, behind: 3 } : base;
   return demoSubmoduleDrift() ? { ...status, files: [...status.files, demo.demoDriftedSubmodule] } : status;
 }
 
@@ -521,6 +534,10 @@ export const ipc = {
       return { status: 'up_to_date', message: pull ? 'main is already up to date (demo)' : 'Fetched origin; no refs moved (demo)', changes: [] };
     }
     return invoke('repository_group_update', { path, pull, runId });
+  },
+  async pullPreview(path: string, remote: string): Promise<PullPreview | null> {
+    if (!isTauri()) return demo.demoPullPreview(demoPullScenario(), remote);
+    return invoke('pull_preview', { path, remote });
   },
   async pull(path: string, remote: string, mode?: 'merge' | 'rebase'): Promise<OpOutcome> {
     if (!isTauri()) {

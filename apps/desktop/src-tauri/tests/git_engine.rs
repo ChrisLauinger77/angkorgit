@@ -4089,3 +4089,183 @@ fn a_submodule_with_only_edited_files_reports_no_commit_drift() {
     assert_eq!(entry.unstaged.as_deref(), Some("modified"));
     assert!(entry.submodule.is_none());
 }
+
+struct PullScene {
+    local: TempRepo,
+    other: TempRepo,
+}
+
+impl PullScene {
+    fn new() -> Self {
+        let local = TempRepo::new();
+        local.write("a.txt", "one\ntwo\nthree\n");
+        local.write("b.txt", "bee\n");
+        commit_all(&local, "base");
+        let origin = bare_origin(&local);
+        core::push(local.path(), "origin", None, false, false, true).unwrap();
+        let other = clone_of(&origin, &local, "other");
+        Self { local, other }
+    }
+
+    fn upstream_commit(&self, file: &str, content: &str, message: &str) {
+        self.local.write(file, content);
+        commit_all(&self.local, message);
+        core::push(self.local.path(), "origin", None, false, false, true).unwrap();
+        core::fetch(self.other.path(), "origin", false, false).unwrap();
+    }
+
+    fn preview(&self) -> core::PullPreview {
+        core::pull_preview(self.other.path(), "origin")
+            .unwrap()
+            .expect("a branch with an upstream has a preview")
+    }
+
+    fn untouched(&self) -> (String, Vec<String>) {
+        let repo = git2::Repository::open(self.other.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        assert!(!repo.path().join("rebase-merge").exists());
+        assert!(!repo.path().join("MERGE_HEAD").exists());
+        let head = repo.head().unwrap().target().unwrap().to_string();
+        let files = core::status(self.other.path())
+            .unwrap()
+            .files
+            .into_iter()
+            .map(|f| f.path)
+            .collect();
+        (head, files)
+    }
+}
+
+#[test]
+fn pull_preview_is_empty_when_up_to_date_or_simply_behind() {
+    let scene = PullScene::new();
+    let preview = scene.preview();
+    assert_eq!((preview.ahead, preview.behind), (0, 0));
+    assert_eq!(preview.source, "origin/master");
+
+    scene.upstream_commit("a.txt", "one\nTWO\nthree\n", "upstream edit");
+    let preview = scene.preview();
+    assert_eq!((preview.ahead, preview.behind), (0, 1));
+    assert!(preview.conflicts.is_empty());
+    assert!(preview.local_changes.is_empty());
+}
+
+#[test]
+fn pull_preview_lists_uncommitted_files_the_pull_would_overwrite() {
+    let scene = PullScene::new();
+    scene.local.write("new.txt", "theirs\n");
+    scene.upstream_commit("a.txt", "one\nTWO\nthree\n", "upstream edit");
+    scene.other.write("a.txt", "one\ntwo\nmine\n");
+    scene.other.write("new.txt", "mine too\n");
+    scene.other.write("b.txt", "bee\n");
+    scene.other.write("unrelated.txt", "left alone\n");
+
+    let before = scene.untouched();
+    let preview = scene.preview();
+    assert_eq!(preview.local_changes, vec!["a.txt", "new.txt"]);
+    assert!(preview.conflicts.is_empty());
+    assert_eq!(scene.untouched(), before);
+
+    assert!(core::pull(scene.other.path(), "origin", None).is_err());
+}
+
+#[test]
+fn pull_preview_predicts_merge_conflicts_without_touching_the_repo() {
+    let scene = PullScene::new();
+    scene.upstream_commit("a.txt", "one\nTHEIRS\nthree\n", "upstream edit");
+    scene.other.write("a.txt", "one\nOURS\nthree\n");
+    scene.other.write("c.txt", "only here\n");
+    commit_all(&scene.other, "local edit");
+    scene.other.write("dirty.txt", "work in progress\n");
+
+    let before = scene.untouched();
+    let preview = scene.preview();
+    assert_eq!((preview.ahead, preview.behind), (1, 1));
+    assert!(!preview.rebase);
+    assert_eq!(preview.conflicts, vec!["a.txt"]);
+    assert!(preview.local_changes.is_empty());
+    assert_eq!(scene.untouched(), before);
+
+    std::fs::remove_file(scene.other.dir.join("dirty.txt")).unwrap();
+    let outcome = core::pull(scene.other.path(), "origin", None).unwrap();
+    assert_eq!(outcome.status, "conflicts", "{}", outcome.message);
+    assert_eq!(
+        core::conflict_list(scene.other.path()).unwrap(),
+        vec!["a.txt"]
+    );
+}
+
+#[test]
+fn pull_preview_follows_pull_rebase_and_stops_at_the_first_conflicting_commit() {
+    let scene = PullScene::new();
+    scene.upstream_commit("a.txt", "one\nTHEIRS\nthree\n", "upstream edit");
+    scene.other.write("b.txt", "bee two\n");
+    commit_all(&scene.other, "clean local");
+    scene.other.write("a.txt", "one\nOURS\nthree\n");
+    commit_all(&scene.other, "conflicting local");
+    core::set_config(Some(scene.other.path()), "pull.rebase", "true", false).unwrap();
+
+    let before = scene.untouched();
+    let preview = scene.preview();
+    assert!(preview.rebase);
+    assert_eq!((preview.ahead, preview.behind), (2, 1));
+    assert_eq!(preview.conflicts, vec!["a.txt"]);
+    assert_eq!(scene.untouched(), before);
+
+    let outcome = core::pull(scene.other.path(), "origin", None).unwrap();
+    assert_eq!(outcome.status, "conflicts", "{}", outcome.message);
+}
+
+#[test]
+fn pull_preview_reports_no_conflict_for_edits_that_merge_cleanly() {
+    let scene = PullScene::new();
+    scene.upstream_commit("a.txt", "ONE\ntwo\nthree\n", "upstream edit");
+    scene.other.write("a.txt", "one\ntwo\nTHREE\n");
+    commit_all(&scene.other, "local edit");
+
+    let preview = scene.preview();
+    assert_eq!((preview.ahead, preview.behind), (1, 1));
+    assert!(preview.conflicts.is_empty());
+
+    core::set_config(Some(scene.other.path()), "pull.rebase", "true", false).unwrap();
+    assert!(scene.preview().conflicts.is_empty());
+
+    let outcome = core::pull(scene.other.path(), "origin", None).unwrap();
+    assert_eq!(outcome.status, "ok", "{}", outcome.message);
+}
+
+#[test]
+fn pull_preview_is_none_without_an_upstream_or_on_a_detached_head() {
+    let scene = PullScene::new();
+    core::branch_create(scene.other.path(), "solo", None, true).unwrap();
+    assert!(core::pull_preview(scene.other.path(), "origin")
+        .unwrap()
+        .is_none());
+
+    scene.other.write("solo.txt", "solo\n");
+    let head = commit_all(&scene.other, "on solo");
+    core::checkout_detached(scene.other.path(), &head).unwrap();
+    assert!(core::pull_preview(scene.other.path(), "origin")
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn pull_preview_catches_a_rebase_conflict_that_a_merge_would_not_have() {
+    let scene = PullScene::new();
+    scene.upstream_commit("a.txt", "one\nTHEIRS\nthree\n", "upstream edit");
+    scene.other.write("a.txt", "one\nTRIED\nthree\n");
+    commit_all(&scene.other, "try something");
+    scene.other.write("a.txt", "one\ntwo\nthree\n");
+    commit_all(&scene.other, "put it back");
+
+    assert!(scene.preview().conflicts.is_empty());
+
+    core::set_config(Some(scene.other.path()), "pull.rebase", "true", false).unwrap();
+    let before = scene.untouched();
+    assert_eq!(scene.preview().conflicts, vec!["a.txt"]);
+    assert_eq!(scene.untouched(), before);
+
+    let outcome = core::pull(scene.other.path(), "origin", None).unwrap();
+    assert_eq!(outcome.status, "conflicts", "{}", outcome.message);
+}

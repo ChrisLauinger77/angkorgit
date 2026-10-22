@@ -18,8 +18,9 @@ mod watcher;
 pub mod test_api {
     pub use crate::core::blame::blame_file;
     pub use crate::core::branch::{
-        can_fast_forward, checkout_branch, cherry_pick, cherry_pick_many, create as branch_create,
-        list as branches, merge, rebase, rebase_commits, rebase_interactive, reset,
+        can_fast_forward, checkout_branch, checkout_detached, cherry_pick, cherry_pick_many,
+        create as branch_create, list as branches, merge, rebase, rebase_commits,
+        rebase_interactive, reset,
     };
     pub use crate::core::commit::{amend, commit, merge_message, revert, reword};
     pub use crate::core::conflict::{
@@ -42,6 +43,7 @@ pub mod test_api {
         stash_create, stash_files, stash_list, stash_pop, stash_restore_files, tag_create,
         tag_delete, tag_list,
     };
+    pub use crate::core::pull_preview::pull_preview;
     pub use crate::core::remote::{
         add as remote_add, checkout_remote_ref, fetch, group_update, group_update_controlled,
         list as remote_list, pull, push,
@@ -60,6 +62,7 @@ pub mod test_api {
     };
     pub use crate::core::types::HistoryQuery;
     pub use crate::core::types::HistorySearchQuery;
+    pub use crate::core::types::PullPreview;
     pub use crate::core::types::RebaseTodoEntry;
     pub use crate::core::types::WorktreeAddRequest;
     pub use crate::core::worktree::{
@@ -193,6 +196,7 @@ pub fn run() {
             commands::remote_remove,
             commands::remote_fetch,
             commands::remote_pull,
+            commands::pull_preview,
             commands::repository_group_update,
             commands::repository_group_start,
             commands::repository_group_cancel,

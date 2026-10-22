@@ -6,6 +6,14 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Pull tells you before it goes wrong.** After a fetch, AngKorGit tries the
+  pull in memory. When it would conflict, the Pull button carries a warning, its
+  tooltip names the files, and clicking it says what will happen before anything
+  moves. When uncommitted edits would stop the pull, it names those files and
+  offers to stash just them. It follows `pull.rebase`, so a rebase that would stop
+  on one of your commits is caught too.
+
 ### Changed
 - **Submodules follow the commit your repository records.** A pull, checkout,
   merge, rebase, cherry-pick, revert, hard reset or stash pop that moves a

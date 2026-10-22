@@ -3294,3 +3294,44 @@ test("what's new opens from the welcome footer and the status bar and its unread
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).last().click();
   await expect(page.getByRole('dialog')).toBeHidden();
 });
+
+test('pull warns before a conflicting pull and before one that would stop at local edits', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('angkorgit-demo-pull-preview') === null) localStorage.setItem('angkorgit-demo-pull-preview', 'conflicts');
+  });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+
+  const pull = page.getByRole('button', { name: /^Pull/ }).first();
+  await expect(page.locator('[data-pull-warning="conflicts"]')).toBeVisible();
+  await pull.hover();
+  await expect(page.getByText('Pulling will conflict in 2 files: GraphRow.tsx, layout.ts')).toBeVisible();
+
+  await pull.click();
+  const check = page.locator('[data-pull-check="conflicts"]');
+  await expect(check.getByText('This pull will conflict')).toBeVisible();
+  await expect(check.locator('[data-pull-check-file]')).toHaveCount(2);
+  await check.getByRole('button', { name: 'Cancel' }).click();
+  await expect(check).toBeHidden();
+
+  await pull.click();
+  await page.locator('[data-pull-check="conflicts"]').getByRole('button', { name: 'Pull and resolve' }).click();
+  await expect(page.getByText('Already up to date (demo)')).toBeVisible();
+
+  await page.evaluate(() => localStorage.setItem('angkorgit-demo-pull-preview', 'local'));
+  await page.reload();
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.locator('[data-pull-warning="local"]')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: /^Pull/ }).first().click();
+  const local = page.locator('[data-pull-check="local"]');
+  await expect(local.getByText('Your changes are in the way')).toBeVisible();
+  await local.getByRole('button', { name: 'Stash 2 files…' }).click();
+  await expect(page.getByText('Only these 2 files are stashed', { exact: false })).toBeVisible();
+
+  await page.evaluate(() => localStorage.setItem('angkorgit-demo-pull-preview', 'off'));
+  await page.reload();
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-pull-warning]')).toHaveCount(0);
+});

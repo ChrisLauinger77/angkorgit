@@ -139,6 +139,15 @@ export interface FileStatus {
   submodule?: SubmoduleCommits;
 }
 
+export interface PullPreview {
+  source: string;
+  ahead: number;
+  behind: number;
+  rebase: boolean;
+  conflicts: string[];
+  localChanges: string[];
+}
+
 export interface StatusSummary {
   files: FileStatus[];
   branch: string | null;

@@ -275,6 +275,17 @@ pub struct ConflictFile {
     pub has_markers: bool,
 }
 
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PullPreview {
+    pub source: String,
+    pub ahead: usize,
+    pub behind: usize,
+    pub rebase: bool,
+    pub conflicts: Vec<String>,
+    pub local_changes: Vec<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpOutcome {

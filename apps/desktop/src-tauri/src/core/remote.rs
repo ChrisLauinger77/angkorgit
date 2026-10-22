@@ -959,7 +959,7 @@ pub fn pull(path: &str, remote_name: &str, mode: Option<&str>) -> AppResult<OpOu
     super::branch::merge(path, &upstream_name, false)
 }
 
-fn pull_source(
+pub(super) fn pull_source(
     repo: &Repository,
     branch: &git2::Branch,
     branch_name: &str,
@@ -990,7 +990,7 @@ fn pull_source(
     )))
 }
 
-fn pull_rebase_configured(repo: &Repository) -> bool {
+pub(super) fn pull_rebase_configured(repo: &Repository) -> bool {
     repo.config()
         .ok()
         .and_then(|config| config.get_string("pull.rebase").ok())

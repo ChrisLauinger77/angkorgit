@@ -9,6 +9,7 @@ pub mod files;
 pub mod group_update;
 pub mod history;
 pub mod misc;
+pub mod pull_preview;
 pub mod remote;
 pub mod repo;
 pub mod scan;

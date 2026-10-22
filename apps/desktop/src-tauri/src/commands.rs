@@ -2,8 +2,8 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::core::types::*;
 use crate::core::{
-    branch, commit, conflict, diff, files, history, misc, remote, repo, scan, stage, submodule,
-    worktree,
+    branch, commit, conflict, diff, files, history, misc, pull_preview, remote, repo, scan, stage,
+    submodule, worktree,
 };
 use crate::error::AppResult;
 use crate::terminal::TerminalState;
@@ -577,6 +577,11 @@ pub async fn remote_push(
         )
     })
     .await
+}
+
+#[tauri::command]
+pub async fn pull_preview(path: String, remote: String) -> AppResult<Option<PullPreview>> {
+    blocking(move || pull_preview::pull_preview(&path, &remote)).await
 }
 
 #[tauri::command]
