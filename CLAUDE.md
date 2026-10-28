@@ -1604,7 +1604,10 @@ features/
 │                               (data-hook-failed: "A hook stopped the commit|amend", the engine
 │                               message + "Nothing was committed.", the output in a
 │                               data-hook-output pre with ANSI stripped by core cleanCliOutput,
-│                               Copy output / Commit|Amend without hooks = commit(true) / Close);
+│                               Copy output / Commit|Amend without hooks = commit(true) / Close in
+│                               a data-hook-actions footer — the Dialog's own X is ALSO named
+│                               "Close", so an e2e locator must be scoped to that footer or it
+│                               hits a strict-mode violation, which failed PR #84's first CI run);
 │                               the draft is kept.
 │                               SUBMODULE DRIFT ROW (2026-10-21, G53): an unstaged row whose
 │                               FileStatus.submodule is set (checked-out commit ≠ recorded)

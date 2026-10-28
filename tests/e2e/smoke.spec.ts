@@ -938,7 +938,7 @@ test('a failing pre-commit hook shows its output and the commit can skip the hoo
   const output = dialog.locator('[data-hook-output]');
   await expect(output).toContainText("'unusedLane' is assigned a value but never used");
   expect(await output.textContent()).not.toContain('\u001b');
-  await dialog.getByRole('button', { name: 'Close' }).click();
+  await dialog.locator('[data-hook-actions]').getByRole('button', { name: 'Close' }).click();
   await expect(dialog).toBeHidden();
   await expect(summary).toHaveValue('fix: lint me');
   await expect(page.getByText('Committed', { exact: true })).toHaveCount(0);

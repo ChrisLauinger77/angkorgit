@@ -55,7 +55,7 @@ export function HookFailedDialog({
         ) : (
           <p className="text-xs text-muted">The hook printed nothing.</p>
         )}
-        <DialogFooter className="flex-wrap justify-between">
+        <DialogFooter className="flex-wrap justify-between" data-hook-actions>
           <Button variant="ghost" onClick={copy} disabled={!output}>
             <Copy /> Copy output
           </Button>
