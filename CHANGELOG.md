@@ -7,6 +7,11 @@ All notable changes to AngKorGit are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Scripts without an extension get syntax highlighting from their shebang.** A file
+  named `deploy` or `migrate` whose first line is `#!/usr/bin/env bash`, `python3`,
+  `node`, `deno`, `bun`, `ruby`, `php`, `swift` or `ts-node` is highlighted as that
+  language in diffs and blame. The name and extension still win when they say
+  something. (#81)
 - **Pull tells you before it goes wrong.** After a fetch, AngKorGit tries the
   pull in memory. When it would conflict, the Pull button carries a warning, its
   tooltip names the files, and clicking it says what will happen before anything
