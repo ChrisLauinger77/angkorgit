@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use git2::{Oid, Repository};
 
-use crate::ai_cli::{capture, search_path};
+use crate::ai_cli::{capture, capture_child, search_path, spawn_piped};
 use crate::error::{AppError, AppResult};
 
 pub const PRE_COMMIT: &str = "pre-commit";
@@ -18,6 +18,7 @@ const TO_STDIN_VERSION: (u32, u32) = (2, 40);
 const HOOK_TIMEOUT: Duration = Duration::from_secs(600);
 const VERSION_TIMEOUT: Duration = Duration::from_secs(15);
 const OUTPUT_CAP: usize = 64 * 1024;
+const SHELL_PATH: &str = "/bin/sh";
 
 const REPO_ENV: &[&str] = &[
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -250,7 +251,16 @@ pub(crate) fn run(
         (Runner::Git(_), Some(text)) => Some(InputFile::write(text)?),
         _ => None,
     };
-    let mut command = match runner {
+    let configure = |command: &mut std::process::Command| {
+        command.current_dir(cwd).env("PATH", search_path(None));
+        for var in REPO_ENV {
+            command.env_remove(var);
+        }
+        for (key, value) in env {
+            command.env(key, value);
+        }
+    };
+    let spawned = match runner {
         Runner::Git(git) => {
             let mut command = crate::proc::hidden(git);
             command.args(["hook", "run", "--ignore-missing"]);
@@ -263,26 +273,34 @@ pub(crate) fn run(
             if !args.is_empty() {
                 command.arg("--").args(args);
             }
-            command
+            configure(&mut command);
+            spawn_piped(command)
         }
         Runner::Direct(hook) => {
             let mut command = crate::proc::hidden(hook);
             command.args(args);
-            command
+            configure(&mut command);
+            match spawn_piped(command) {
+                Err(error) if is_exec_format_error(&error) => {
+                    let mut command = crate::proc::hidden(SHELL_PATH);
+                    command.arg(hook).args(args);
+                    configure(&mut command);
+                    spawn_piped(command)
+                }
+                spawned => spawned,
+            }
         }
     };
-    command.current_dir(cwd).env("PATH", search_path(None));
-    for var in REPO_ENV {
-        command.env_remove(var);
-    }
-    for (key, value) in env {
-        command.env(key, value);
-    }
+    let child = spawned.map_err(|e| {
+        AppError::other(format!(
+            "The {name} hook could not run: failed to launch: {e}"
+        ))
+    })?;
     let piped = match runner {
         Runner::Direct(_) => input.unwrap_or(""),
         Runner::Git(_) => "",
     };
-    let captured = capture(command, piped, HOOK_TIMEOUT)
+    let captured = capture_child(child, piped, HOOK_TIMEOUT)
         .map_err(|e| AppError::other(format!("The {name} hook could not run: {e}")))?;
     if captured.status == 0 {
         return Ok(());
@@ -297,6 +315,16 @@ pub(crate) fn run(
         status: captured.status,
         output: output_tail(&output, OUTPUT_CAP),
     })
+}
+
+#[cfg(unix)]
+fn is_exec_format_error(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(libc::ENOEXEC)
+}
+
+#[cfg(not(unix))]
+fn is_exec_format_error(_error: &std::io::Error) -> bool {
+    false
 }
 
 fn output_tail(output: &str, cap: usize) -> String {
@@ -691,6 +719,53 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(dir.join("got")).unwrap(),
             "origin|/srv/r.git\nrefs/heads/main a refs/heads/main b\n"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_an_exec_format_error_retries_the_hook_through_sh() {
+        let error = |code| std::io::Error::from_raw_os_error(code);
+        assert!(is_exec_format_error(&error(libc::ENOEXEC)));
+        assert!(!is_exec_format_error(&error(libc::ENOENT)));
+        assert!(!is_exec_format_error(&error(libc::EACCES)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn direct_runner_runs_a_hook_without_a_shebang_through_sh_like_git() {
+        use std::os::unix::fs::PermissionsExt;
+        let (dir, repo) = temp_repo("no-shebang");
+        let hook = dir.join(".git").join("hooks").join("pre-push");
+        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        std::fs::write(
+            &hook,
+            "printf '%s|%s|%s|%s\\n' \"$1\" \"$2\" \"$ANGKORGIT_HOOK_PROBE\" \"$(pwd -P)\" > got\ncat >> got\necho refused >&2\nexit 4\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let error = run(
+            &repo,
+            &Runner::Direct(hook),
+            PRE_PUSH,
+            &[OsStr::new("origin"), OsStr::new("/srv/r.git")],
+            &[("ANGKORGIT_HOOK_PROBE", OsStr::new("kept"))],
+            Some("refs/heads/main a refs/heads/main b\n"),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(&error, AppError::Hook { hook, status: 4, output } if hook == PRE_PUSH && output == "refused"),
+            "{error:?}"
+        );
+        let workdir = std::fs::canonicalize(&dir).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dir.join("got")).unwrap(),
+            format!(
+                "origin|/srv/r.git|kept|{}\nrefs/heads/main a refs/heads/main b\n",
+                workdir.display()
+            )
         );
         let _ = std::fs::remove_dir_all(dir);
     }
