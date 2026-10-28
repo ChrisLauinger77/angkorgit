@@ -957,6 +957,42 @@ test('a failing pre-commit hook shows its output and the commit can skip the hoo
   await expect(dialog).toBeHidden();
 });
 
+test('a hook that fails after a tab switch stays with its repository and offers no retry in the other tab', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('angkorgit-demo-hooks', 'fail');
+    localStorage.setItem('angkorgit-demo-hooks-delay', '2500');
+  });
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByRole('option', { name: 'temple-ui' }).click();
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+
+  const summary = page.getByLabel('Commit summary');
+  await summary.fill('fix: started in angkorgit');
+  await page.getByRole('button', { name: /^Commit \d+ files?$/ }).click();
+  await expect(page.getByRole('button', { name: 'Running hooks…' })).toBeVisible();
+
+  await page.keyboard.press('ControlOrMeta+2');
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'Running hooks…' })).toHaveCount(0);
+  await summary.fill('feat: temple draft');
+
+  await expect(page.getByText('Nothing was committed in angkorgit.', { exact: false })).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-hook-failed]')).toHaveCount(0);
+  await expect(page.getByText('Committed', { exact: true })).toHaveCount(0);
+  await expect(summary).toHaveValue('feat: temple draft');
+
+  await page.keyboard.press('ControlOrMeta+1');
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  await expect(summary).toHaveValue('fix: started in angkorgit');
+  await expect(page.locator('[data-hook-failed]')).toHaveCount(0);
+});
+
 test('the commit box has no Skip hooks box when the repository has no hooks', async ({ page }) => {
   await page.goto('/');
   await page.getByText('angkorgit', { exact: true }).first().click();

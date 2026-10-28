@@ -137,6 +137,7 @@ function demoNothingStaged(): boolean {
   }
 }
 const DEMO_HOOKS = 'angkorgit-demo-hooks';
+const DEMO_HOOKS_DELAY = 'angkorgit-demo-hooks-delay';
 
 function demoHooks(): 'pass' | 'fail' | null {
   try {
@@ -147,8 +148,17 @@ function demoHooks(): 'pass' | 'fail' | null {
   }
 }
 
+function demoHooksDelay(): number {
+  try {
+    const ms = Number(localStorage.getItem(DEMO_HOOKS_DELAY));
+    return ms > 0 ? ms : 200;
+  } catch {
+    return 200;
+  }
+}
+
 async function demoCommitOutcome(oid: string, noVerify: boolean): Promise<CommitOutcome> {
-  await delay(200);
+  await delay(demoHooks() && !noVerify ? demoHooksDelay() : 200);
   if (demoHooks() === 'fail' && !noVerify) {
     const failure: IpcError = {
       code: 'hook_failed',

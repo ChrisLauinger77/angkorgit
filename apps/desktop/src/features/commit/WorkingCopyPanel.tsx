@@ -40,7 +40,7 @@ import { FileFilterInput } from '@/components/FileFilterInput';
 import { ChangeMark } from '@/components/ChangeMark';
 import { DirName } from '@/components/DirName';
 import { EmptyCard } from '@/components/EmptyCard';
-import { HookFailedDialog, type HookFailure } from '@/components/HookFailedDialog';
+import { HookFailedDialog, type CommitRequest, type HookFailure } from '@/components/HookFailedDialog';
 import {
   FileTree,
   folderFiles,
@@ -289,7 +289,8 @@ export function WorkingCopyPanel() {
     window.addEventListener('mouseup', onUp);
   };
   const setAmend = (value: boolean) => useCommitDraft.getState().setAmend(path, value);
-  const [committing, setCommitting] = useState(false);
+  const [committingPaths, setCommittingPaths] = useState<string[]>([]);
+  const committing = committingPaths.includes(path);
   const [aiBusy, setAiBusy] = useState(false);
   const aiRunRef = useRef(0);
   const [fileMenu, setFileMenu] = useState<{ x: number; y: number; file: FileStatus; staged: boolean } | null>(null);
@@ -716,7 +717,7 @@ export function WorkingCopyPanel() {
     if (path) useAiWork.getState().stopReview(path);
   };
 
-  const committingRef = useRef(false);
+  const committingRef = useRef(new Set<string>());
 
   const reportOutcome = (outcome: CommitOutcome, done: string) => {
     if (outcome.hookWarning) {
@@ -726,46 +727,61 @@ export function WorkingCopyPanel() {
     }
   };
 
+  const runCommit = async (request: CommitRequest, noVerify: boolean) => {
+    const target = request.repoPath;
+    if (committingRef.current.has(target)) return;
+    committingRef.current.add(target);
+    setCommittingPaths((paths) => [...paths, target]);
+    const isCurrent = () => useRepo.getState().repo?.path === target;
+    const where = () => (isCurrent() ? '' : ` in ${basename(target)}`);
+    const text = request.message.trim();
+    try {
+      await ensureRepoProfile(target);
+      if (request.amend) {
+        reportOutcome(await ipc.amend(target, text ? text : null, noVerify), `Commit amended${where()}`);
+      } else {
+        const summary = text.split('\n')[0].slice(0, 50);
+        const outcome = await useUndo.getState().tracked({
+          path: target,
+          kind: 'commit',
+          label: `commit "${summary}"`,
+          action: () => ipc.commit(target, text, noVerify),
+        });
+        reportOutcome(outcome, `Committed${where()}`);
+      }
+      const drafts = useCommitDraft.getState();
+      drafts.setDraft(target, '');
+      if (drafts.amendFor === target) drafts.setAmend(target, false);
+      useAiWork.getState().setReview(target, null);
+      if (isCurrent()) {
+        setSkipHooks(false);
+        await refreshStatus();
+        await reloadGraph(target);
+      }
+    } catch (error) {
+      const failure = error as Partial<IpcError> | null;
+      if (failure?.code === 'hook_failed' && isCurrent()) {
+        setHookFailure({ request, message: failure.message ?? '', output: failure.detail ?? '' });
+      } else if (failure?.code === 'hook_failed') {
+        toast.error(failure.message ?? 'A hook stopped the commit.', {
+          description: `Nothing was committed in ${basename(target)}. Commit there again to see the hook output.`,
+        });
+      } else {
+        toast.error(`Commit failed${where()}: ${failure?.message ?? error}`);
+      }
+    } finally {
+      committingRef.current.delete(target);
+      setCommittingPaths((paths) => paths.filter((p) => p !== target));
+    }
+  };
+
   const commit = async (noVerify = skipHooks) => {
     if (!summary.trim() && !amend) return;
     if (allStaged.length === 0 && !amend && repo?.state !== 'merge') {
       toast.info('Stage some changes first');
       return;
     }
-    if (committingRef.current) return;
-    committingRef.current = true;
-    setCommitting(true);
-    try {
-      await ensureRepoProfile(path);
-      if (amend) {
-        reportOutcome(await ipc.amend(path, message.trim() ? message.trim() : null, noVerify), 'Commit amended');
-      } else {
-        const summary = message.trim().split('\n')[0].slice(0, 50);
-        const outcome = await useUndo.getState().tracked({
-          path,
-          kind: 'commit',
-          label: `commit "${summary}"`,
-          action: () => ipc.commit(path, message.trim(), noVerify),
-        });
-        reportOutcome(outcome, 'Committed');
-      }
-      setMessage('');
-      setAmend(false);
-      setSkipHooks(false);
-      useAiWork.getState().setReview(path, null);
-      await refreshStatus();
-      await reloadGraph(path);
-    } catch (error) {
-      const failure = error as Partial<IpcError> | null;
-      if (failure?.code === 'hook_failed') {
-        setHookFailure({ message: failure.message ?? '', output: failure.detail ?? '', amend });
-      } else {
-        toast.error(`Commit failed: ${failure?.message ?? error}`);
-      }
-    } finally {
-      committingRef.current = false;
-      setCommitting(false);
-    }
+    await runCommit({ repoPath: path, message, amend }, noVerify);
   };
 
   useEffect(() => {
@@ -1626,11 +1642,12 @@ export function WorkingCopyPanel() {
         </div>
       )}
       <HookFailedDialog
-        failure={hookFailure}
+        failure={hookFailure?.request.repoPath === path ? hookFailure : null}
         onClose={() => setHookFailure(null)}
         onCommitWithoutHooks={() => {
+          const failure = hookFailure;
           setHookFailure(null);
-          void commit(true);
+          if (failure) void runCommit(failure.request, true);
         }}
       />
     </div>

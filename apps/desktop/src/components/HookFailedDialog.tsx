@@ -12,10 +12,16 @@ import {
   DialogTitle,
 } from '@angkorgit/design-system';
 
+export interface CommitRequest {
+  repoPath: string;
+  message: string;
+  amend: boolean;
+}
+
 export interface HookFailure {
+  request: CommitRequest;
   message: string;
   output: string;
-  amend: boolean;
 }
 
 export function HookFailedDialog({
@@ -38,10 +44,10 @@ export function HookFailedDialog({
     <Dialog open={failure !== null} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-w-2xl" data-hook-failed>
         <DialogHeader>
-          <DialogTitle>A hook stopped the {failure?.amend ? 'amend' : 'commit'}</DialogTitle>
+          <DialogTitle>A hook stopped the {failure?.request.amend ? 'amend' : 'commit'}</DialogTitle>
           <DialogDescription>
             {failure?.message}{' '}
-            {failure?.amend ? 'The last commit was not changed.' : 'Nothing was committed.'} Your
+            {failure?.request.amend ? 'The last commit was not changed.' : 'Nothing was committed.'} Your
             message is still in the commit box.
           </DialogDescription>
         </DialogHeader>
@@ -61,7 +67,7 @@ export function HookFailedDialog({
           </Button>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={onCommitWithoutHooks}>
-              <ShieldOff /> {failure?.amend ? 'Amend' : 'Commit'} without hooks
+              <ShieldOff /> {failure?.request.amend ? 'Amend' : 'Commit'} without hooks
             </Button>
             <Button onClick={onClose} autoFocus>
               Close
