@@ -6,6 +6,13 @@ All notable changes to AngKorGit are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-10-28
+
+The know-before-you-pull release. Pull now tells you ahead of time when it would
+conflict or stop at your uncommitted edits, submodules move with the commit the
+repository records instead of showing up as a stray change, and scripts without an
+extension are highlighted from their shebang.
+
 ### Added
 - **Scripts without an extension get syntax highlighting from their shebang.** A file
   named `deploy` or `migrate` whose first line is `#!/usr/bin/env bash`, `python3`,
@@ -1814,7 +1821,8 @@ The first release. 🏛️
 - AI assistant with pluggable providers (OpenAI, Anthropic, Gemini, Ollama,
   LM Studio): commit messages, diff/conflict explanations, PR descriptions, reviews
 
-[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/cheat2001/angkorgit/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/cheat2001/angkorgit/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/cheat2001/angkorgit/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/cheat2001/angkorgit/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/cheat2001/angkorgit/compare/v0.21.1...v0.22.0
