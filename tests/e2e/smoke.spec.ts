@@ -918,6 +918,53 @@ test('mod+enter with nothing staged asks to stage instead of committing', async 
   await expect(summary).toHaveValue('fix: nothing staged');
 });
 
+test('a failing pre-commit hook shows its output and the commit can skip the hooks', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('angkorgit-demo-hooks', 'fail'));
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+
+  const skip = page.getByRole('checkbox', { name: 'Skip hooks' });
+  await expect(skip).not.toBeChecked();
+  const summary = page.getByLabel('Commit summary');
+  const commitButton = page.getByRole('button', { name: /^Commit \d+ files?$/ });
+  await summary.fill('fix: lint me');
+  await commitButton.click();
+
+  const dialog = page.locator('[data-hook-failed]');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('The pre-commit hook failed (exit code 1).');
+  await expect(dialog).toContainText('Nothing was committed.');
+  const output = dialog.locator('[data-hook-output]');
+  await expect(output).toContainText("'unusedLane' is assigned a value but never used");
+  expect(await output.textContent()).not.toContain('\u001b');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(summary).toHaveValue('fix: lint me');
+  await expect(page.getByText('Committed', { exact: true })).toHaveCount(0);
+
+  await commitButton.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Commit without hooks' }).click();
+  await expect(page.getByText('Committed', { exact: true })).toBeVisible();
+  await expect(summary).toHaveValue('');
+
+  await summary.fill('fix: skip on purpose');
+  await skip.check();
+  await commitButton.click();
+  await expect(summary).toHaveValue('');
+  await expect(skip).not.toBeChecked();
+  await expect(dialog).toBeHidden();
+});
+
+test('the commit box has no Skip hooks box when the repository has no hooks', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('angkorgit', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search commits…')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByLabel('Commit summary')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Skip hooks' })).toHaveCount(0);
+});
+
 test('a submodule left at an older commit offers Update submodule instead of Discard', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('angkorgit-demo-submodule-drift', '1'));
   await page.goto('/');
