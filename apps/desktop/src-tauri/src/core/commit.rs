@@ -25,7 +25,7 @@ pub fn commit(path: &str, message: &str, no_verify: bool) -> AppResult<CommitOut
     }
 
     let tree_oid = staged_tree(&repo, is_merge)?;
-    let hooks = CommitHooks::prepare(&repo, no_verify)?;
+    let hooks = CommitHooks::prepare(&repo, &sig, no_verify)?;
     let tree_oid = if hooks.pre_commit(&repo)? {
         staged_tree(&repo, is_merge)?
     } else {
@@ -151,7 +151,7 @@ pub fn amend(path: &str, message: Option<&str>, no_verify: bool) -> AppResult<Co
         .head()
         .map_err(|_| AppError::other("nothing to amend: repository has no commits"))?;
     let commit = head.peel_to_commit()?;
-    let hooks = CommitHooks::prepare(&repo, no_verify)?;
+    let hooks = CommitHooks::prepare(&repo, &commit.author(), no_verify)?;
     hooks.pre_commit(&repo)?;
     let message = match message {
         Some(message) => Some(hooks.commit_msg(&repo, message)?),

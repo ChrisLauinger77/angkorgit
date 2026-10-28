@@ -4596,3 +4596,67 @@ fn commit_msg_hook_runs_in_a_linked_worktree() {
     assert!(!repo.dir.join(".git").join("COMMIT_EDITMSG").exists());
     assert_eq!(head_message_at(repo.path()), "base");
 }
+
+#[test]
+fn commit_hooks_see_the_author_and_amend_keeps_the_original_one() {
+    if !hooks_runnable() {
+        return;
+    }
+    let repo = TempRepo::new();
+    repo.write("a.txt", "one\n");
+    commit_all(&repo, "first");
+    let hooks = default_hooks(&repo);
+    let record = |name: &str| {
+        format!(
+            "printf '%s|%s|%s' \"$GIT_AUTHOR_NAME\" \"$GIT_AUTHOR_EMAIL\" \"$GIT_AUTHOR_DATE\" > .git/{name}-author"
+        )
+    };
+    write_hook(&hooks, "pre-commit", &record("pre-commit"));
+    write_hook(&hooks, "commit-msg", &record("commit-msg"));
+    let author_line = |path: &str| {
+        let git = git2::Repository::open(path).unwrap();
+        let author = git
+            .head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .author()
+            .to_owned();
+        let when = author.when();
+        let offset = when.offset_minutes().abs();
+        format!(
+            "{}|{}|@{} {}{:02}{:02}",
+            author.name().unwrap(),
+            author.email().unwrap(),
+            when.seconds(),
+            when.sign(),
+            offset / 60,
+            offset % 60
+        )
+    };
+
+    let original = author_line(repo.path());
+    core::set_config(Some(repo.path()), "user.name", "Other Person", false).unwrap();
+    core::set_config(
+        Some(repo.path()),
+        "user.email",
+        "other@angkorgit.dev",
+        false,
+    )
+    .unwrap();
+    repo.write("a.txt", "two\n");
+    core::stage_all(repo.path()).unwrap();
+    core::amend(repo.path(), None, false).unwrap();
+    assert!(original.starts_with("Test User|test@angkorgit.dev|@"));
+    assert_eq!(author_line(repo.path()), original);
+    assert_eq!(repo.read(".git/pre-commit-author"), original);
+    assert_eq!(repo.read(".git/commit-msg-author"), original);
+
+    repo.write("a.txt", "three\n");
+    core::stage_all(repo.path()).unwrap();
+    core::commit(repo.path(), "second", false).unwrap();
+    let current = author_line(repo.path());
+    assert!(current.starts_with("Other Person|other@angkorgit.dev|@"));
+    assert_eq!(repo.read(".git/pre-commit-author"), current);
+    assert_eq!(repo.read(".git/commit-msg-author"), current);
+}

@@ -9,7 +9,8 @@ All notable changes to AngKorGit are documented here. The format follows
 ### Added
 - **Commits run your Git hooks.** `pre-commit` and `commit-msg` now run when you
   commit or amend, from `.git/hooks` or `core.hooksPath` (Husky and similar setups
-  included), the same as `git commit` does. A failing hook stops the commit and shows
+  included), the same as `git commit` does, with the commit's author in
+  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL` and `GIT_AUTHOR_DATE`. A failing hook stops the commit and shows
   its output, a hook that reformats and re-stages files gets its changes committed, and
   a hook that edits the message is respected. **Skip hooks** next to Amend commits
   without them, like `--no-verify`, and appears only in repositories that have hooks.

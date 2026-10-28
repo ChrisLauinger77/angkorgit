@@ -1,4 +1,4 @@
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -210,17 +210,21 @@ pub(crate) struct CommitHooks {
     git: Option<PathBuf>,
     pre_commit: bool,
     commit_msg: bool,
-    index_file: PathBuf,
+    env: Vec<(&'static str, OsString)>,
     pub(crate) warning: Option<String>,
 }
 
 impl CommitHooks {
-    pub(crate) fn prepare(repo: &Repository, no_verify: bool) -> AppResult<Self> {
+    pub(crate) fn prepare(
+        repo: &Repository,
+        author: &git2::Signature<'_>,
+        no_verify: bool,
+    ) -> AppResult<Self> {
         let mut hooks = CommitHooks {
             git: None,
             pre_commit: false,
             commit_msg: false,
-            index_file: repo.path().join("index"),
+            env: commit_env(repo, author),
             warning: None,
         };
         let Some(workdir) = repo.workdir() else {
@@ -240,11 +244,11 @@ impl CommitHooks {
         Ok(hooks)
     }
 
-    fn env(&self) -> [(&'static str, &OsStr); 2] {
-        [
-            ("GIT_INDEX_FILE", self.index_file.as_os_str()),
-            ("GIT_EDITOR", OsStr::new(":")),
-        ]
+    fn env(&self) -> Vec<(&str, &OsStr)> {
+        self.env
+            .iter()
+            .map(|(key, value)| (*key, value.as_os_str()))
+            .collect()
     }
 
     pub(crate) fn pre_commit(&self, repo: &Repository) -> AppResult<bool> {
@@ -281,6 +285,33 @@ impl CommitHooks {
     }
 }
 
+fn commit_env(repo: &Repository, author: &git2::Signature<'_>) -> Vec<(&'static str, OsString)> {
+    vec![
+        ("GIT_INDEX_FILE", repo.path().join("index").into_os_string()),
+        ("GIT_EDITOR", OsString::from(":")),
+        (
+            "GIT_AUTHOR_NAME",
+            OsString::from(String::from_utf8_lossy(author.name_bytes()).into_owned()),
+        ),
+        (
+            "GIT_AUTHOR_EMAIL",
+            OsString::from(String::from_utf8_lossy(author.email_bytes()).into_owned()),
+        ),
+        ("GIT_AUTHOR_DATE", OsString::from(git_date(author.when()))),
+    ]
+}
+
+pub(crate) fn git_date(time: git2::Time) -> String {
+    let offset = time.offset_minutes().abs();
+    format!(
+        "@{} {}{:02}{:02}",
+        time.seconds(),
+        time.sign(),
+        offset / 60,
+        offset % 60
+    )
+}
+
 fn cleanup_message(text: &str) -> String {
     text.lines()
         .map(str::trim_end)
@@ -308,6 +339,19 @@ mod tests {
         assert_eq!(parse_git_version("git version 2.36.0.rc2"), Some((2, 36)));
         assert_eq!(parse_git_version("hub version 2.14.2"), None);
         assert_eq!(parse_git_version(""), None);
+    }
+
+    #[test]
+    fn author_dates_use_the_raw_format_git_exports_to_hooks() {
+        assert_eq!(
+            git_date(git2::Time::new(1_730_103_456, 60)),
+            "@1730103456 +0100"
+        );
+        assert_eq!(
+            git_date(git2::Time::new(1_730_103_456, -330)),
+            "@1730103456 -0530"
+        );
+        assert_eq!(git_date(git2::Time::new(0, 0)), "@0 +0000");
     }
 
     #[test]
