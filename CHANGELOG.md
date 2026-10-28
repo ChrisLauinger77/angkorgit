@@ -16,6 +16,13 @@ All notable changes to AngKorGit are documented here. The format follows
   without them, like `--no-verify`, and appears only in repositories that have hooks.
   Running hooks needs Git 2.36 or newer on your PATH; without it the commit still goes
   through and AngKorGit tells you the hooks did not run. (#82)
+- **Pushes run your `pre-push` hook.** Every push in the app (toolbar, graph, sidebar,
+  tags, force push and the push in the pull request dialog) runs `pre-push` first with
+  the same arguments and ref lines `git push` gives it, including the remote's current
+  commit for each ref. A failing hook stops the push before anything is sent and shows
+  its output, with **Push without hooks** to go ahead anyway; the Push menu has the same
+  entry when the repository has a `pre-push` hook. With Git 2.36 to 2.39 the hook still
+  runs on macOS and Linux. (#82)
 
 ## [0.25.0] — 2026-10-28
 

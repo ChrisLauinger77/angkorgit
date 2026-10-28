@@ -20,7 +20,7 @@ import {
   Textarea,
   cn,
 } from '@angkorgit/design-system';
-import { ipc, type CommitOutcome, type IpcError } from '@/core/ipc';
+import { ipc, type CommitOutcome } from '@/core/ipc';
 import { useRepo } from '@/features/repository/store';
 import { useGraph } from '@/features/graph/store';
 import { focusRequests, useUi } from '@/features/ui/store';
@@ -40,7 +40,8 @@ import { FileFilterInput } from '@/components/FileFilterInput';
 import { ChangeMark } from '@/components/ChangeMark';
 import { DirName } from '@/components/DirName';
 import { EmptyCard } from '@/components/EmptyCard';
-import { HookFailedDialog, type CommitRequest, type HookFailure } from '@/components/HookFailedDialog';
+import { isHookFailure, reportHookFailure } from '@/components/hookFailure';
+import { useRepoHooks } from '@/features/repository/useRepoHooks';
 import {
   FileTree,
   folderFiles,
@@ -70,6 +71,14 @@ function statusBadge(kind: string | null) {
     default:
       return null;
   }
+}
+
+const COMMIT_HOOKS = ['pre-commit', 'commit-msg'];
+
+interface CommitRequest {
+  repoPath: string;
+  message: string;
+  amend: boolean;
 }
 
 function submoduleDrift(file: FileStatus, staged: boolean): string | null {
@@ -354,28 +363,13 @@ export function WorkingCopyPanel() {
   );
   const statusVersion = useRepo((s) => s.statusVersion);
   const statusReady = status !== null;
-  const [commitHooks, setCommitHooks] = useState<string[]>([]);
+  const repoHooks = useRepoHooks(path);
+  const commitHooks = useMemo(() => repoHooks.filter((name) => COMMIT_HOOKS.includes(name)), [repoHooks]);
   const [skipHooks, setSkipHooks] = useState(false);
-  const [hookFailure, setHookFailure] = useState<HookFailure | null>(null);
   const hooksActive = commitHooks.length > 0 && !skipHooks;
   useEffect(() => {
-    setCommitHooks([]);
     setSkipHooks(false);
-    setHookFailure(null);
   }, [path]);
-  useEffect(() => {
-    if (!path || !statusReady) return;
-    let cancelled = false;
-    void ipc
-      .commitHooks(path)
-      .then((names) => {
-        if (!cancelled) setCommitHooks(names);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [path, statusReady, statusVersion]);
   const [indexPaths, setIndexPaths] = useState<string[] | null>(null);
   const [indexError, setIndexError] = useState<string | null>(null);
   useEffect(() => {
@@ -759,15 +753,15 @@ export function WorkingCopyPanel() {
         await reloadGraph(target);
       }
     } catch (error) {
-      const failure = error as Partial<IpcError> | null;
-      if (failure?.code === 'hook_failed' && isCurrent()) {
-        setHookFailure({ request, message: failure.message ?? '', output: failure.detail ?? '' });
-      } else if (failure?.code === 'hook_failed') {
-        toast.error(failure.message ?? 'A hook stopped the commit.', {
-          description: `Nothing was committed in ${basename(target)}. Commit there again to see the hook output.`,
+      if (isHookFailure(error)) {
+        reportHookFailure({
+          repoPath: target,
+          operation: request.amend ? 'amend' : 'commit',
+          error,
+          retry: () => void runCommit(request, true),
         });
       } else {
-        toast.error(`Commit failed${where()}: ${failure?.message ?? error}`);
+        toast.error(`Commit failed${where()}: ${(error as { message?: string } | null)?.message ?? error}`);
       }
     } finally {
       committingRef.current.delete(target);
@@ -1641,15 +1635,6 @@ export function WorkingCopyPanel() {
           </div>
         </div>
       )}
-      <HookFailedDialog
-        failure={hookFailure?.request.repoPath === path ? hookFailure : null}
-        onClose={() => setHookFailure(null)}
-        onCommitWithoutHooks={() => {
-          const failure = hookFailure;
-          setHookFailure(null);
-          if (failure) void runCommit(failure.request, true);
-        }}
-      />
     </div>
   );
 }
